@@ -126,7 +126,7 @@ class PlaintextProducerSendTest extends BaseProducerSendTest {
     }
 
     def sendUntilQueued(producer: KafkaProducer[Array[Byte],Array[Byte]]): Future[RecordMetadata] = {
-      val (future, _) = TestUtils.computeUntilTrue(send(producer))(future => {
+      val (future, _) = TestUtils.block(TestUtils.computeUntilTrueAsync(send(producer))(future => {
         if (future.isDone) {
           try {
             future.get
@@ -136,7 +136,7 @@ class PlaintextProducerSendTest extends BaseProducerSendTest {
           }
         } else
           true    // Send future not yet complete, so it has been queued to be sent
-      })
+      }))
       future
     }
 

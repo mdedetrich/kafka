@@ -146,11 +146,11 @@ object LogCompactionTester {
       adminClient.createTopics(newTopics).all.get
 
       var pendingTopics: Seq[String] = Seq()
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val allTopics = adminClient.listTopics.names.get.asScala.toSeq
         pendingTopics = topics.filter(topicName => !allTopics.contains(topicName))
         pendingTopics.isEmpty
-      }, s"timed out waiting for topics : $pendingTopics")
+      }, s"timed out waiting for topics : $pendingTopics"))
 
     } finally adminClient.close()
   }

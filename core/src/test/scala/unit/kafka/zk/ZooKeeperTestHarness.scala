@@ -120,9 +120,9 @@ object ZooKeeperTestHarness {
    */
   def verifyNoUnexpectedThreads(context: String): Unit = {
     def allThreads = Thread.getAllStackTraces.keySet.asScala.map(thread => thread.getName)
-    val (threads, noUnexpected) = TestUtils.computeUntilTrue(allThreads) { threads =>
+    val (threads, noUnexpected) = TestUtils.block(TestUtils.computeUntilTrueAsync(allThreads) { threads =>
       threads.forall(t => unexpectedThreadNames.forall(s => !t.contains(s)))
-    }
+    })
     assertTrue(noUnexpected, s"Found unexpected threads during $context, allThreads=$threads, " +
       s"unexpected=${threads.filterNot(t => unexpectedThreadNames.forall(s => !t.contains(s)))}")
   }

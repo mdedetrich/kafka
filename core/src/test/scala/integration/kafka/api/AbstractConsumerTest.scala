@@ -157,9 +157,9 @@ abstract class AbstractConsumerTest extends BaseRequestTest {
       records ++= polledRecords.asScala
       records.size >= numRecords
     }
-    TestUtils.pollRecordsUntilTrue(consumer, pollAction, waitTimeMs = 60000,
+    TestUtils.block(TestUtils.pollRecordsUntilTrueAsync(consumer, pollAction, waitTimeMs = 60000,
       msg = s"Timed out before consuming expected $numRecords records. " +
-        s"The number consumed was ${records.size}.")
+        s"The number consumed was ${records.size}."))
     records
   }
 
@@ -191,8 +191,8 @@ abstract class AbstractConsumerTest extends BaseRequestTest {
     val commitCallback = new RetryCommitCallback
 
     sendAsyncCommit(commitCallback)
-    TestUtils.pollUntilTrue(consumer, () => commitCallback.isComplete,
-      "Failed to observe commit callback before timeout", waitTimeMs = 10000)
+    TestUtils.block(TestUtils.pollUntilTrueAsync(consumer, () => commitCallback.isComplete,
+      "Failed to observe commit callback before timeout", waitTimeMs = 10000))
 
     assertEquals(None, commitCallback.error)
   }
@@ -262,11 +262,11 @@ abstract class AbstractConsumerTest extends BaseRequestTest {
                               msg: Option[String] = None,
                               waitTime: Long = 10000L): Unit = {
     val assignments = mutable.Buffer[Set[TopicPartition]]()
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       assignments.clear()
       consumerPollers.foreach(assignments += _.consumerAssignment())
       isPartitionAssignmentValid(assignments, subscriptions)
-    }, msg.getOrElse(s"Did not get valid assignment for partitions $subscriptions. Instead, got $assignments"), waitTime)
+    }, msg.getOrElse(s"Did not get valid assignment for partitions $subscriptions. Instead, got $assignments"), waitTime))
   }
 
   /**
@@ -293,8 +293,8 @@ abstract class AbstractConsumerTest extends BaseRequestTest {
 
   protected def awaitRebalance(consumer: Consumer[_, _], rebalanceListener: TestConsumerReassignmentListener): Unit = {
     val numReassignments = rebalanceListener.callsToAssigned
-    TestUtils.pollUntilTrue(consumer, () => rebalanceListener.callsToAssigned > numReassignments,
-      "Timed out before expected rebalance completed")
+    TestUtils.block(TestUtils.pollUntilTrueAsync(consumer, () => rebalanceListener.callsToAssigned > numReassignments,
+      "Timed out before expected rebalance completed"))
   }
 
   protected def ensureNoRebalance(consumer: Consumer[_, _], rebalanceListener: TestConsumerReassignmentListener): Unit = {

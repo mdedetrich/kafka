@@ -414,10 +414,10 @@ class TransactionCoordinatorConcurrencyTest extends AbstractCoordinatorConcurren
   }
 
   private def verifyTransaction(txn: Transaction, expectedState: TransactionState): Unit = {
-    val (metadata, success) = TestUtils.computeUntilTrue({
+    val (metadata, success) = TestUtils.block(TestUtils.computeUntilTrueAsync({
       enableCompletion()
       transactionMetadata(txn)
-    })(metadata => metadata.nonEmpty && metadata.forall(m => m.state == expectedState && m.pendingState.isEmpty))
+    })(metadata => metadata.nonEmpty && metadata.forall(m => m.state == expectedState && m.pendingState.isEmpty)))
     assertTrue(success, s"Invalid metadata state $metadata")
   }
 
@@ -607,10 +607,10 @@ class TransactionCoordinatorConcurrencyTest extends AbstractCoordinatorConcurren
     }
 
     override def await(): Unit = {
-      val (_, success) = TestUtils.computeUntilTrue({
+      val (_, success) = TestUtils.block(TestUtils.computeUntilTrueAsync({
         replicaManager.tryCompleteActions()
         transactions.forall(txn => transactionMetadata(txn).isEmpty)
-      })(identity)
+      })(identity))
       assertTrue(success, "Transaction not expired")
     }
   }

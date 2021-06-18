@@ -389,7 +389,7 @@ class TransactionsTest extends KafkaServerTestHarness {
     val producer2 = transactionalProducers(1)
     producer2.initTransactions()
 
-    TestUtils.waitUntilTrue(() => offsetAndMetadata.equals(consumer.committed(Set(tp).asJava).get(tp)), "cannot read committed offset")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => offsetAndMetadata.equals(consumer.committed(Set(tp).asJava).get(tp)), "cannot read committed offset"))
   }
 
   @Test

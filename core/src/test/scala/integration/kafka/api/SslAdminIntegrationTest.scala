@@ -180,8 +180,8 @@ class SslAdminIntegrationTest extends SaslSslAdminIntegrationTest {
     assertTrue(aclFutures.forall(future => !future.all.isDone))
     // Other requests should succeed even though ACL updates are blocked
     assertNotNull(createAdminClient.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
-    TestUtils.waitUntilTrue(() => purgatoryMetric("PurgatorySize") > 0, "PurgatorySize metrics not updated")
-    TestUtils.waitUntilTrue(() => purgatoryMetric("NumDelayedOperations") > 0, "NumDelayedOperations metrics not updated")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => purgatoryMetric("PurgatorySize") > 0, "PurgatorySize metrics not updated"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => purgatoryMetric("NumDelayedOperations") > 0, "NumDelayedOperations metrics not updated"))
 
     // Release the semaphore and verify that ACL update requests complete
     testSemaphore.release(aclFutures.size)
@@ -211,7 +211,7 @@ class SslAdminIntegrationTest extends SaslSslAdminIntegrationTest {
     val results = client.createAcls(List(acl2, acl3).asJava).values
     assertEquals(Set(acl2, acl3), results.keySet().asScala)
     assertFalse(results.values.asScala.exists(_.isDone))
-    TestUtils.waitUntilTrue(() => testSemaphore.hasQueuedThreads, "Authorizer not blocked in createAcls")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => testSemaphore.hasQueuedThreads, "Authorizer not blocked in createAcls"))
     testSemaphore.release()
     results.values.forEach(_.get)
     validateRequestContext(SslAdminIntegrationTest.lastUpdateRequestContext.get, ApiKeys.CREATE_ACLS)
@@ -220,7 +220,7 @@ class SslAdminIntegrationTest extends SaslSslAdminIntegrationTest {
     val results2 = client.deleteAcls(List(acl.toFilter, acl2.toFilter, acl3.toFilter).asJava).values
     assertEquals(Set(acl.toFilter, acl2.toFilter, acl3.toFilter), results2.keySet.asScala)
     assertFalse(results2.values.asScala.exists(_.isDone))
-    TestUtils.waitUntilTrue(() => testSemaphore.hasQueuedThreads, "Authorizer not blocked in deleteAcls")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => testSemaphore.hasQueuedThreads, "Authorizer not blocked in deleteAcls"))
     testSemaphore.release()
     results.values.forEach(_.get)
     assertEquals(0, results2.get(acl.toFilter).get.values.size())
@@ -247,7 +247,7 @@ class SslAdminIntegrationTest extends SaslSslAdminIntegrationTest {
   private def numRequestThreads = servers.head.config.numIoThreads * servers.size
 
   private def waitForNoBlockedRequestThreads(): Unit = {
-    val (blockedThreads, _) = TestUtils.computeUntilTrue(blockedRequestThreads)(_.isEmpty)
+    val (blockedThreads, _) = TestUtils.block(TestUtils.computeUntilTrueAsync(blockedRequestThreads)(_.isEmpty))
     assertEquals(List.empty, blockedThreads)
   }
 

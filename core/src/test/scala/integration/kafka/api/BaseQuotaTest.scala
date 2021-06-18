@@ -319,8 +319,8 @@ abstract class QuotaTestClients(topic: String,
     val maxMetric = producer.metrics.get(new MetricName("produce-throttle-time-max", "producer-metrics", "", tags))
 
     if (expectThrottle) {
-      TestUtils.waitUntilTrue(() => metricValue(avgMetric) > 0.0 && metricValue(maxMetric) > 0.0,
-        s"Producer throttle metric not updated: avg=${metricValue(avgMetric)} max=${metricValue(maxMetric)}")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => metricValue(avgMetric) > 0.0 && metricValue(maxMetric) > 0.0,
+        s"Producer throttle metric not updated: avg=${metricValue(avgMetric)} max=${metricValue(maxMetric)}"))
     } else
       assertEquals(0.0, metricValue(maxMetric), 0.0, "Should not have been throttled")
   }
@@ -332,8 +332,8 @@ abstract class QuotaTestClients(topic: String,
     val maxMetric = consumer.metrics.get(new MetricName("fetch-throttle-time-max", "consumer-fetch-manager-metrics", "", tags))
 
     if (expectThrottle) {
-      TestUtils.waitUntilTrue(() => metricValue(avgMetric) > 0.0 && metricValue(maxMetric) > 0.0,
-        s"Consumer throttle metric not updated: avg=${metricValue(avgMetric)} max=${metricValue(maxMetric)}")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => metricValue(avgMetric) > 0.0 && metricValue(maxMetric) > 0.0,
+        s"Consumer throttle metric not updated: avg=${metricValue(avgMetric)} max=${metricValue(maxMetric)}"))
       maxThrottleTime.foreach(max => assertTrue(metricValue(maxMetric) <= max,
         s"Maximum consumer throttle too high: ${metricValue(maxMetric)}"))
     } else
@@ -367,7 +367,7 @@ abstract class QuotaTestClients(topic: String,
   }
 
   def waitForQuotaUpdate(producerQuota: Long, consumerQuota: Long, requestQuota: Double, server: KafkaServer = leaderNode): Unit = {
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       val quotaManagers = server.dataPlaneRequestProcessor.quotas
       val overrideProducerQuota = quota(quotaManagers.produce, userPrincipal, producerClientId)
       val overrideConsumerQuota = quota(quotaManagers.fetch, userPrincipal, consumerClientId)
@@ -382,6 +382,6 @@ abstract class QuotaTestClients(topic: String,
         s"ClientId $producerClientId of user $userPrincipal must have request quota")
       assertEquals(Quota.upperBound(requestQuota.toDouble), overrideConsumerRequestQuota,
         s"ClientId $consumerClientId of user $userPrincipal must have request quota")
-    }
+    })
   }
 }

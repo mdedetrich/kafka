@@ -57,8 +57,8 @@ class ZkNodeChangeNotificationListenerTest extends ZooKeeperTestHarness {
     notificationListener.init()
 
     zkClient.createAclChangeNotification(notificationMessage1)
-    TestUtils.waitUntilTrue(() => notificationHandler.received().size == 1 && notificationHandler.received().last == notificationMessage1,
-      "Failed to send/process notification message in the timeout period.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => notificationHandler.received().size == 1 && notificationHandler.received().last == notificationMessage1,
+      "Failed to send/process notification message in the timeout period."))
 
     /*
      * There is no easy way to test purging. Even if we mock kafka time with MockTime, the purging compares kafka time
@@ -69,13 +69,13 @@ class ZkNodeChangeNotificationListenerTest extends ZooKeeperTestHarness {
      */
 
     zkClient.createAclChangeNotification(notificationMessage2)
-    TestUtils.waitUntilTrue(() => notificationHandler.received().size == 2 && notificationHandler.received().last == notificationMessage2,
-      "Failed to send/process notification message in the timeout period.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => notificationHandler.received().size == 2 && notificationHandler.received().last == notificationMessage2,
+      "Failed to send/process notification message in the timeout period."))
 
     (3 to 10).foreach(i => zkClient.createAclChangeNotification(new ResourcePattern(GROUP, "message" + i, LITERAL)))
 
-    TestUtils.waitUntilTrue(() => notificationHandler.received().size == 10,
-      s"Expected 10 invocations of processNotifications, but there were ${notificationHandler.received()}")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => notificationHandler.received().size == 10,
+      s"Expected 10 invocations of processNotifications, but there were ${notificationHandler.received()}"))
   }
 
   @Test
@@ -89,8 +89,8 @@ class ZkNodeChangeNotificationListenerTest extends ZooKeeperTestHarness {
     zkClient.createAclChangeNotification(new ResourcePattern(GROUP, "messageB", LITERAL))
     zkClient.createAclChangeNotification(new ResourcePattern(GROUP, "messageC", LITERAL))
 
-    TestUtils.waitUntilTrue(() => notificationHandler.received().size == 3,
-      s"Expected 2 invocations of processNotifications, but there were ${notificationHandler.received()}")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => notificationHandler.received().size == 3,
+      s"Expected 2 invocations of processNotifications, but there were ${notificationHandler.received()}"))
   }
 
   private class TestNotificationHandler extends NotificationHandler {

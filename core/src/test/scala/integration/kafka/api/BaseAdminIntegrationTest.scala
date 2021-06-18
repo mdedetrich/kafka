@@ -212,11 +212,11 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
   }
 
   def waitForTopics(client: Admin, expectedPresent: Seq[String], expectedMissing: Seq[String]): Unit = {
-    waitUntilTrue(() => {
+    block(waitUntilTrueAsync(() => {
       val topics = client.listTopics.names.get()
       expectedPresent.forall(topicName => topics.contains(topicName)) &&
         expectedMissing.forall(topicName => !topics.contains(topicName))
-    }, "timed out waiting for topics")
+    }, "timed out waiting for topics"))
   }
 
   def getTopicMetadata(client: Admin,
@@ -224,7 +224,7 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
                        describeOptions: DescribeTopicsOptions = new DescribeTopicsOptions,
                        expectedNumPartitionsOpt: Option[Int] = None): TopicDescription = {
     var result: TopicDescription = null
-    waitUntilTrue(() => {
+    block(waitUntilTrueAsync(() => {
       val topicResult = client.describeTopics(Set(topic).asJava, describeOptions).values.get(topic)
       try {
         result = topicResult.get
@@ -232,7 +232,7 @@ abstract class BaseAdminIntegrationTest extends IntegrationTestHarness with Logg
       } catch {
         case e: ExecutionException if e.getCause.isInstanceOf[UnknownTopicOrPartitionException] => false  // metadata may not have propagated yet, so retry
       }
-    }, s"Timed out waiting for metadata for $topic")
+    }, s"Timed out waiting for metadata for $topic"))
     result
   }
 

@@ -182,7 +182,7 @@ abstract class KafkaServerTestHarness extends ZooKeeperTestHarness {
   def waitForUserScramCredentialToAppearOnAllBrokers(clientPrincipal: String, mechanismName: String): Unit = {
     servers.foreach { server =>
       val cache = server.credentialProvider.credentialCache.cache(mechanismName, classOf[ScramCredential])
-      TestUtils.waitUntilTrue(() => cache.get(clientPrincipal) != null, s"SCRAM credentials not created for $clientPrincipal")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cache.get(clientPrincipal) != null, s"SCRAM credentials not created for $clientPrincipal"))
     }
   }
 

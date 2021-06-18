@@ -373,7 +373,7 @@ abstract class EndToEndAuthorizationTest extends IntegrationTestHarness with Sas
       false
     }
     assertThrows(classOf[TopicAuthorizationException],
-      () => TestUtils.pollRecordsUntilTrue(consumer, verifyNoRecords, "Consumer didn't fail with authorization exception within timeout"))
+      () => TestUtils.block(TestUtils.pollRecordsUntilTrueAsync(consumer, verifyNoRecords, "Consumer didn't fail with authorization exception within timeout")))
 
     // Add ACLs and verify successful produce/consume/describe on first topic
     setReadAndWriteAcls(tp)

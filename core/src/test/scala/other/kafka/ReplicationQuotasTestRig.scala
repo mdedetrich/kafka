@@ -203,10 +203,10 @@ object ReplicationQuotasTestRig {
     }
 
     def waitForReassignmentToComplete(): Unit = {
-      waitUntilTrue(() => {
+      block(waitUntilTrueAsync(() => {
         printRateMetrics()
         adminClient.listPartitionReassignments().reassignments().get().isEmpty
-      }, s"Partition reassignments didn't complete.", 60 * 60 * 1000, pause = 1000L)
+      }, s"Partition reassignments didn't complete.", 60 * 60 * 1000, pause = 1000L))
     }
 
     def renderChart(data: mutable.Map[Int, Array[Double]], name: String, journal: Journal, displayChartsOnScreen: Boolean): Unit = {

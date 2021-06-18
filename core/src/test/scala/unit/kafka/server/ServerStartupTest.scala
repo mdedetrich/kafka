@@ -86,7 +86,7 @@ class ServerStartupTest extends ZooKeeperTestHarness {
     val props = TestUtils.createBrokerConfig(brokerId, zkConnect)
     server = TestUtils.createServer(KafkaConfig.fromProps(props))
 
-    TestUtils.waitUntilTrue(() => server.metadataCache.getAliveBrokers.nonEmpty, "Wait for cache to update")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => server.metadataCache.getAliveBrokers.nonEmpty, "Wait for cache to update"))
     assertEquals(1, server.metadataCache.getAliveBrokers.size)
     assertEquals(brokerId, server.metadataCache.getAliveBrokers.head.id)
   }
@@ -99,8 +99,8 @@ class ServerStartupTest extends ZooKeeperTestHarness {
     server = new KafkaServer(KafkaConfig.fromProps(props))
 
     server.startup()
-    TestUtils.waitUntilTrue(() => server.brokerState == BrokerState.RUNNING,
-      "waiting for the broker state to become RUNNING")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => server.brokerState == BrokerState.RUNNING,
+      "waiting for the broker state to become RUNNING"))
     val brokers = zkClient.getAllBrokersInCluster
     assertEquals(1, brokers.size)
     assertEquals(brokerId, brokers.head.id)

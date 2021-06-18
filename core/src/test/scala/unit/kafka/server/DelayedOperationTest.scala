@@ -146,8 +146,8 @@ class DelayedOperationTest {
     assertFalse(r2.isCompleted)
     assertEquals(-1, result.get())
     futures2(1).complete(21)
-    TestUtils.waitUntilTrue(() => r2.isCompleted, "r2 not completed")
-    TestUtils.waitUntilTrue(() => result.get == 41, "callback not invoked")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => r2.isCompleted, "r2 not completed"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => result.get == 41, "callback not invoked"))
     assertTrue(hasExecutorThread, "Thread not created for executing delayed task")
 
     // One immediate and one delayed future: callback should wait for delayed task to complete
@@ -157,8 +157,8 @@ class DelayedOperationTest {
     assertFalse(r3.isCompleted, "r3 should be incomplete")
     assertEquals(-1, result.get())
     futures3.head.complete(30)
-    TestUtils.waitUntilTrue(() => r3.isCompleted, "r3 not completed")
-    TestUtils.waitUntilTrue(() => result.get == 61, "callback not invoked")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => r3.isCompleted, "r3 not completed"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => result.get == 61, "callback not invoked"))
 
 
     // One future doesn't complete within timeout. Should expire and invoke callback after timeout.
@@ -168,7 +168,7 @@ class DelayedOperationTest {
     val futures4 = List(new CompletableFuture[Integer], new CompletableFuture[Integer])
     val r4 = purgatory.tryCompleteElseWatch[Integer](expirationMs, futures4, () => updateResult(futures4))
     futures4.head.complete(40)
-    TestUtils.waitUntilTrue(() => futures4(1).isDone, "r4 futures not expired")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => futures4(1).isDone, "r4 futures not expired"))
     assertTrue(r4.isCompleted, "r4 not completed after timeout")
     val elapsed = Time.SYSTEM.hiResClockMs - start
     assertTrue(elapsed >= expirationMs, s"Time for expiration $elapsed should at least $expirationMs")

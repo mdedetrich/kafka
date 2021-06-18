@@ -172,8 +172,8 @@ class ListOffsetsRequestTest extends BaseRequestTest {
     killBroker(firstLeaderId)
     val secondLeaderId = TestUtils.awaitLeaderChange(servers, partition, firstLeaderId)
     // make sure high watermark of new leader has caught up
-    TestUtils.waitUntilTrue(() => sendRequest(secondLeaderId, 0L, -1).errorCode() != Errors.OFFSET_NOT_AVAILABLE.code(),
-      "the second leader does not sync to follower")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => sendRequest(secondLeaderId, 0L, -1).errorCode() != Errors.OFFSET_NOT_AVAILABLE.code(),
+      "the second leader does not sync to follower"))
     val secondLeaderEpoch = TestUtils.findLeaderEpoch(secondLeaderId, partition, servers)
 
     // No changes to written data

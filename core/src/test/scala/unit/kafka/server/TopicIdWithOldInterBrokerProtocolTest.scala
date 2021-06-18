@@ -108,8 +108,8 @@ class TopicIdWithOldInterBrokerProtocolTest extends BaseRequestTest {
   private def validateTopicIsDeleted(topic: String): Unit = {
     val metadata = connectAndReceive[MetadataResponse](new MetadataRequest.Builder(
       List(topic).asJava, true).build).topicMetadata.asScala
-    TestUtils.waitUntilTrue (() => !metadata.exists(p => p.topic.equals(topic) && p.error == Errors.NONE),
-      s"The topic $topic should not exist")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !metadata.exists(p => p.topic.equals(topic) && p.error == Errors.NONE),
+      s"The topic $topic should not exist"))
   }
 
 }

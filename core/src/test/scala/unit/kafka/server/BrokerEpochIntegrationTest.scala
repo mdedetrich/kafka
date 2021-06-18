@@ -250,7 +250,7 @@ class BrokerEpochIntegrationTest extends ZooKeeperTestHarness {
 
   private def checkControllerBrokerEpochsCacheMatchesWithZk(controllerContext: ControllerContext): Unit = {
     val brokerAndEpochs = zkClient.getAllBrokerAndEpochsInCluster
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val brokerEpochsInControllerContext = controllerContext.liveBrokerIdAndEpochs
       if (brokerAndEpochs.size != brokerEpochsInControllerContext.size) false
       else {
@@ -258,7 +258,7 @@ class BrokerEpochIntegrationTest extends ZooKeeperTestHarness {
           case (broker, epoch) => brokerEpochsInControllerContext.get(broker.id).contains(epoch)
         }
       }
-    }, "Broker epoch mismatches")
+    }, "Broker epoch mismatches"))
   }
 
   private def sendAndVerifyStaleBrokerEpochInResponse(controllerChannelManager: ControllerChannelManager,
@@ -267,7 +267,7 @@ class BrokerEpochIntegrationTest extends ZooKeeperTestHarness {
     controllerChannelManager.sendRequest(brokerId2, builder, response => {
       staleBrokerEpochDetected = response.errorCounts().containsKey(Errors.STALE_BROKER_EPOCH)
     })
-    TestUtils.waitUntilTrue(() => staleBrokerEpochDetected, "Broker epoch should be stale")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => staleBrokerEpochDetected, "Broker epoch should be stale"))
     assertTrue(staleBrokerEpochDetected, "Stale broker epoch not detected by the broker")
   }
 
@@ -278,6 +278,6 @@ class BrokerEpochIntegrationTest extends ZooKeeperTestHarness {
         succeed = response.errorCounts().isEmpty ||
           (response.errorCounts().containsKey(Errors.NONE) && response.errorCounts().size() == 1)
     })
-    TestUtils.waitUntilTrue(() => succeed, "Should receive response with no errors")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => succeed, "Should receive response with no errors"))
   }
 }

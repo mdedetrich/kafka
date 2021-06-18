@@ -153,7 +153,7 @@ class DeleteOffsetsConsumerGroupCommandIntegrationTest extends ConsumerGroupComm
   private def withStableConsumerGroup(body: => Unit): Unit = {
     val consumer = createConsumer()
     try {
-      TestUtils.subscribeAndWaitForRecords(this.topic, consumer)
+      TestUtils.block(TestUtils.subscribeAndWaitForRecordsAsync(this.topic, consumer))
       consumer.commitSync()
       body
     } finally {
@@ -164,7 +164,7 @@ class DeleteOffsetsConsumerGroupCommandIntegrationTest extends ConsumerGroupComm
   private def withEmptyConsumerGroup(body: => Unit): Unit = {
     val consumer = createConsumer()
     try {
-      TestUtils.subscribeAndWaitForRecords(this.topic, consumer)
+      TestUtils.block(TestUtils.subscribeAndWaitForRecordsAsync(this.topic, consumer))
       consumer.commitSync()
     } finally {
       Utils.closeQuietly(consumer, "consumer")

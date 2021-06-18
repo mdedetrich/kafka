@@ -112,7 +112,7 @@ class RequestQuotaTest extends BaseRequestTest {
     quotaProps.put(QuotaConfigs.REQUEST_PERCENTAGE_OVERRIDE_CONFIG, "0.01")
     adminZkClient.changeClientIdConfig(Sanitizer.sanitize(smallQuotaConsumerClientId), quotaProps)
 
-    TestUtils.retry(20000) {
+    TestUtils.block(TestUtils.retryAsync(20000) {
       val quotaManager = servers.head.dataPlaneRequestProcessor.quotas.request
       assertEquals(Quota.upperBound(0.01), quotaManager.quota("some-user", "some-client"), s"Default request quota not set")
       assertEquals(Quota.upperBound(2000), quotaManager.quota("some-user", unthrottledClientId), s"Request quota override not set")
@@ -120,7 +120,7 @@ class RequestQuotaTest extends BaseRequestTest {
       assertEquals(Quota.upperBound(1), produceQuotaManager.quota("some-user", smallQuotaProducerClientId), s"Produce quota override not set")
       val consumeQuotaManager = servers.head.dataPlaneRequestProcessor.quotas.fetch
       assertEquals(Quota.upperBound(1), consumeQuotaManager.quota("some-user", smallQuotaConsumerClientId), s"Consume quota override not set")
-    }
+    })
   }
 
   @AfterEach

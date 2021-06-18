@@ -55,10 +55,10 @@ class RaftClusterTest {
     try {
       cluster.format()
       cluster.startup()
-      TestUtils.waitUntilTrue(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
-        "Broker never made it to RUNNING state.")
-      TestUtils.waitUntilTrue(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
-        "RaftManager was not initialized.")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
+        "Broker never made it to RUNNING state."))
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
+        "RaftManager was not initialized."))
       val admin = Admin.create(cluster.clientProperties())
       try {
         assertEquals(cluster.nodes().clusterId().toString,
@@ -81,10 +81,10 @@ class RaftClusterTest {
       cluster.format()
       cluster.startup()
       cluster.waitForReadyBrokers()
-      TestUtils.waitUntilTrue(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
-        "Broker never made it to RUNNING state.")
-      TestUtils.waitUntilTrue(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
-        "RaftManager was not initialized.")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
+        "Broker never made it to RUNNING state."))
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
+        "RaftManager was not initialized."))
 
       val admin = Admin.create(cluster.clientProperties())
       try {
@@ -94,7 +94,7 @@ class RaftClusterTest {
         createTopicResult.all().get()
 
         // List created topic
-        TestUtils.waitUntilTrue(() => {
+        TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
           val listTopicsResult = admin.listTopics()
           val result = listTopicsResult.names().get().size() == newTopic.size()
           if (result) {
@@ -103,14 +103,14 @@ class RaftClusterTest {
             })
           }
           result
-        }, "Topics created were not listed.")
+        }, "Topics created were not listed."))
 
         // Delete topic
         val deleteResult = admin.deleteTopics(Collections.singletonList("test-topic"))
         deleteResult.all().get()
 
         // List again
-        TestUtils.waitUntilTrue(() => {
+        TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
           val listTopicsResult = admin.listTopics()
           val result = listTopicsResult.names().get().size() != newTopic.size()
           if (result) {
@@ -119,7 +119,7 @@ class RaftClusterTest {
             })
           }
           result
-        }, "Topic was not removed from list.")
+        }, "Topic was not removed from list."))
 
       } finally {
         admin.close()
@@ -139,10 +139,10 @@ class RaftClusterTest {
       cluster.format()
       cluster.startup()
       cluster.waitForReadyBrokers()
-      TestUtils.waitUntilTrue(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
-        "Broker never made it to RUNNING state.")
-      TestUtils.waitUntilTrue(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
-        "RaftManager was not initialized.")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
+        "Broker never made it to RUNNING state."))
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
+        "RaftManager was not initialized."))
       val admin = Admin.create(cluster.clientProperties())
       try {
         // Create many topics
@@ -154,7 +154,7 @@ class RaftClusterTest {
         createTopicResult.all().get()
 
         // List created topic
-        TestUtils.waitUntilTrue(() => {
+        TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
           val listTopicsResult = admin.listTopics()
           val result = listTopicsResult.names().get().size() == newTopic.size()
           if (result) {
@@ -163,7 +163,7 @@ class RaftClusterTest {
             })
           }
           result
-        }, "Topics created were not listed.")
+        }, "Topics created were not listed."))
       } finally {
         admin.close()
       }
@@ -182,10 +182,10 @@ class RaftClusterTest {
       cluster.format()
       cluster.startup()
       cluster.waitForReadyBrokers()
-      TestUtils.waitUntilTrue(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
-        "Broker never made it to RUNNING state.")
-      TestUtils.waitUntilTrue(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
-        "RaftManager was not initialized.")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
+        "Broker never made it to RUNNING state."))
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.raftManagers().get(0).kafkaRaftClient.leaderAndEpoch().leaderId.isPresent,
+        "RaftManager was not initialized."))
       val admin = Admin.create(cluster.clientProperties())
       try {
         // Create many topics
@@ -197,7 +197,7 @@ class RaftClusterTest {
         createTopicResult.all().get()
 
         // List created topic
-        TestUtils.waitUntilTrue(() => {
+        TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
           val listTopicsResult = admin.listTopics()
           val result = listTopicsResult.names().get().size() == newTopic.size()
           if (result) {
@@ -206,7 +206,7 @@ class RaftClusterTest {
             })
           }
           result
-        }, "Topics created were not listed.")
+        }, "Topics created were not listed."))
       } finally {
         admin.close()
       }
@@ -224,8 +224,8 @@ class RaftClusterTest {
     try {
       cluster.format()
       cluster.startup()
-      TestUtils.waitUntilTrue(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
-        "Broker never made it to RUNNING state.")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => cluster.brokers().get(0).currentState() == BrokerState.RUNNING,
+        "Broker never made it to RUNNING state."))
       val admin = Admin.create(cluster.clientProperties())
       try {
         val entity = new ClientQuotaEntity(Map("user" -> "testkit").asJava)
@@ -251,9 +251,9 @@ class RaftClusterTest {
             }
           }
 
-          val (describeResult, ok) = TestUtils.computeUntilTrue(describeOrFail(filter)) {
+          val (describeResult, ok) = TestUtils.block(TestUtils.computeUntilTrueAsync(describeOrFail(filter)) {
             results => results.getOrDefault(entity, java.util.Collections.emptyMap[String, java.lang.Double]()).size() == expectCount
-          }
+          })
           assertTrue(ok, "Broker never saw new client quotas")
           describeResult
         }

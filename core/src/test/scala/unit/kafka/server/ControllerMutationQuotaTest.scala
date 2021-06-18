@@ -168,10 +168,10 @@ class ControllerMutationQuotaTest extends BaseRequestTest {
       // throttle time should be zero.
       val rejectedTopicName = errors1.filter(_._2 == Errors.THROTTLING_QUOTA_EXCEEDED).keys.head
       val rejectedTopicSpec = TopicsWith30Partitions.filter(_._1 == rejectedTopicName)
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val (throttleTimeMs2, errors2) = createTopics(rejectedTopicSpec, StrictCreateTopicsRequestVersion)
         throttleTimeMs2 == 0 && errors2 == Map(rejectedTopicName -> Errors.NONE)
-      }, "Failed to create topics after having been throttled")
+      }, "Failed to create topics after having been throttled"))
     }
   }
 
@@ -219,10 +219,10 @@ class ControllerMutationQuotaTest extends BaseRequestTest {
       // throttle time should be zero.
       val rejectedTopicName = errors1.filter(_._2 == Errors.THROTTLING_QUOTA_EXCEEDED).keys.head
       val rejectedTopicSpec = TopicsWith30Partitions.filter(_._1 == rejectedTopicName)
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val (throttleTimeMs2, errors2) = deleteTopics(rejectedTopicSpec, StrictDeleteTopicsRequestVersion)
         throttleTimeMs2 == 0 && errors2 == Map(rejectedTopicName -> Errors.NONE)
-      }, "Failed to delete topics after having been throttled")
+      }, "Failed to delete topics after having been throttled"))
     }
   }
 
@@ -276,10 +276,10 @@ class ControllerMutationQuotaTest extends BaseRequestTest {
       // throttle time should be zero.
       val rejectedTopicName = errors1.filter(_._2 == Errors.THROTTLING_QUOTA_EXCEEDED).keys.head
       val rejectedTopicSpec = TopicsWith30Partitions.filter(_._1 == rejectedTopicName)
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val (throttleTimeMs2, errors2) = createPartitions(rejectedTopicSpec, StrictCreatePartitionsRequestVersion)
         throttleTimeMs2 == 0 && errors2 == Map(rejectedTopicName -> Errors.NONE)
-      }, "Failed to create partitions after having been throttled")
+      }, "Failed to create partitions after having been throttled"))
     }
   }
 
@@ -366,10 +366,10 @@ class ControllerMutationQuotaTest extends BaseRequestTest {
     val quotaManager = servers.head.quotaManagers.controllerMutation
     var actualQuota = Double.MinValue
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       actualQuota = quotaManager.quota(user, "").bound()
       expectedQuota == actualQuota
-    }, s"Quota of $user is not $expectedQuota but $actualQuota")
+    }, s"Quota of $user is not $expectedQuota but $actualQuota"))
   }
 
   private def quotaMetric(user: String): Option[KafkaMetric] = {
@@ -383,7 +383,7 @@ class ControllerMutationQuotaTest extends BaseRequestTest {
   }
 
   private def waitQuotaMetric(user: String, expectedQuota: Double): Unit = {
-    TestUtils.retry(JTestUtils.DEFAULT_MAX_WAIT_MS) {
+    TestUtils.block(TestUtils.retryAsync(JTestUtils.DEFAULT_MAX_WAIT_MS) {
       quotaMetric(user) match {
         case Some(metric) =>
           val config = metric.config()
@@ -394,7 +394,7 @@ class ControllerMutationQuotaTest extends BaseRequestTest {
         case None =>
           fail(s"Quota metric of $user is not defined")
       }
-    }
+    })
   }
 
   private def alterClientQuotas(request: Map[ClientQuotaEntity, Map[String, Option[Double]]]): Map[ClientQuotaEntity, KafkaFutureImpl[Void]] = {

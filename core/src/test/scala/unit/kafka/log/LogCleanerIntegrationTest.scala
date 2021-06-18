@@ -77,11 +77,11 @@ class LogCleanerIntegrationTest extends AbstractLogCleanerIntegrationTest with K
     val uncleanablePartitionsCountGauge = getGauge[Int]("uncleanable-partitions-count", uncleanableDirectory)
     val uncleanableBytesGauge = getGauge[Long]("uncleanable-bytes", uncleanableDirectory)
 
-    TestUtils.waitUntilTrue(() => uncleanablePartitionsCountGauge.value() == 2, "There should be 2 uncleanable partitions", 2000L)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => uncleanablePartitionsCountGauge.value() == 2, "There should be 2 uncleanable partitions", 2000L))
     val expectedTotalUncleanableBytes = LogCleanerManager.calculateCleanableBytes(log, 0, log.logSegments.last.baseOffset)._2 +
       LogCleanerManager.calculateCleanableBytes(log2, 0, log2.logSegments.last.baseOffset)._2
-    TestUtils.waitUntilTrue(() => uncleanableBytesGauge.value() == expectedTotalUncleanableBytes,
-      s"There should be $expectedTotalUncleanableBytes uncleanable bytes", 1000L)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => uncleanableBytesGauge.value() == expectedTotalUncleanableBytes,
+      s"There should be $expectedTotalUncleanableBytes uncleanable bytes", 1000L))
 
     val uncleanablePartitions = cleaner.cleanerManager.uncleanablePartitions(uncleanableDirectory)
     assertTrue(uncleanablePartitions.contains(topicPartitions(0)))
@@ -206,11 +206,11 @@ class LogCleanerIntegrationTest extends AbstractLogCleanerIntegrationTest with K
     // we simulate the unexpected error with an interrupt
     cleaner.cleaners.foreach(_.interrupt())
     // wait until interruption is propagated to all the threads
-    TestUtils.waitUntilTrue(
+    TestUtils.block(TestUtils.waitUntilTrueAsync(
       () => cleaner.cleaners.foldLeft(true)((result, thread) => {
         thread.isThreadFailed && result
       }), "Threads didn't terminate unexpectedly"
-    )
+    ))
     assertEquals(cleaner.cleaners.size, getGauge[Int](metricName).value())
     assertEquals(cleaner.cleaners.size, cleaner.deadThreadCount)
   }

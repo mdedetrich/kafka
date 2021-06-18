@@ -382,7 +382,7 @@ class EpochDrivenReplicationProtocolAcceptanceTest extends ZooKeeperTestHarness 
   }
 
   private def waitForLogsToMatch(b1: KafkaServer, b2: KafkaServer, partition: Int = 0): Unit = {
-    TestUtils.waitUntilTrue(() => {getLog(b1, partition).logEndOffset == getLog(b2, partition).logEndOffset}, "Logs didn't match.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {getLog(b1, partition).logEndOffset == getLog(b2, partition).logEndOffset}, "Logs didn't match."))
   }
 
   private def printSegments(): Unit = {
@@ -443,9 +443,9 @@ class EpochDrivenReplicationProtocolAcceptanceTest extends ZooKeeperTestHarness 
   }
 
   private def awaitISR(tp: TopicPartition): Unit = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       leader.replicaManager.onlinePartition(tp).get.inSyncReplicaIds.size == 2
-    }, "Timed out waiting for replicas to join ISR")
+    }, "Timed out waiting for replicas to join ISR"))
   }
 
   private def createProducer: KafkaProducer[Array[Byte], Array[Byte]] = {

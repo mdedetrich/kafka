@@ -119,15 +119,15 @@ class AclAuthorizerWithZkSaslTest extends ZooKeeperTestHarness with SaslSetup {
     val allowWriteAcl = new AccessControlEntry(principal.toString, WildcardHost, WRITE, ALLOW)
     val acls = Set(allowReadAcl, allowWriteAcl)
 
-    TestUtils.retry(maxWaitMs = 15000) {
+    TestUtils.block(TestUtils.retryAsync(maxWaitMs = 15000) {
       try {
         addAcls(aclAuthorizer, acls, resource)
       } catch {
         case _: Exception => // Ignore error and retry
       }
       assertEquals(acls, getAcls(aclAuthorizer, resource))
-    }
-    val (acls2, _) = TestUtils.computeUntilTrue(getAcls(aclAuthorizer2, resource)) { _ == acls }
+    })
+    val (acls2, _) = TestUtils.block(TestUtils.computeUntilTrueAsync(getAcls(aclAuthorizer2, resource)) { _ == acls })
     assertEquals(acls, acls2)
   }
 

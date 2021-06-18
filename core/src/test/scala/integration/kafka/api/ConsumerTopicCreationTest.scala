@@ -99,9 +99,9 @@ object ConsumerTopicCreationTest {
 
       // Wait until the produced record was consumed. This guarantees that metadata request for `topic_2` was sent to the
       // broker.
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         consumer.poll(Duration.ofMillis(100)).count > 0
-      }, "Timed out waiting to consume")
+      }, "Timed out waiting to consume"))
 
       // MetadataRequest is guaranteed to create the topic znode if creation was required
       val topicCreated = zkClient.getAllTopicsInCluster().contains(topic_2)

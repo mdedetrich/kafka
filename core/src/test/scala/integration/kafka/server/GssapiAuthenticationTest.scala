@@ -216,7 +216,7 @@ class GssapiAuthenticationTest extends IntegrationTestHarness with SaslSetup {
   }
 
   private def pollUntilReadyOrDisconnected(selector: Selector, nodeId: String): Boolean = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       selector.poll(100)
       val disconnectState = selector.disconnected().get(nodeId)
       // Verify that disconnect state is not AUTHENTICATION_FAILED
@@ -225,7 +225,7 @@ class GssapiAuthenticationTest extends IntegrationTestHarness with SaslSetup {
           s"Authentication failed with exception ${disconnectState.exception()}")
       }
       selector.isChannelReady(nodeId) || disconnectState != null
-    }, "Client not ready or disconnected within timeout")
+    }, "Client not ready or disconnected within timeout"))
     val isReady = selector.isChannelReady(nodeId)
     selector.close(nodeId)
     isReady
@@ -241,13 +241,13 @@ class GssapiAuthenticationTest extends IntegrationTestHarness with SaslSetup {
     val selector = createSelector()
     val nodeId = "1"
     selector.connect(nodeId, serverAddr, 1024, 1024)
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       selector.poll(100)
       val disconnectState = selector.disconnected().get(nodeId)
       if (disconnectState != null)
         assertEquals(ChannelState.State.AUTHENTICATION_FAILED, disconnectState.state())
       disconnectState != null
-    }, "Client not disconnected within timeout")
+    }, "Client not disconnected within timeout"))
   }
 
   private def createSelector(): Selector = {

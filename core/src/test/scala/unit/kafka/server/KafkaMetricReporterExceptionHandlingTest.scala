@@ -68,14 +68,14 @@ class KafkaMetricReporterExceptionHandlingTest extends BaseRequestTest {
     socket.setSoTimeout(10000)
 
     try {
-      TestUtils.retry(10000) {
+      TestUtils.block(TestUtils.retryAsync(10000) {
         val listGroupsRequest = new ListGroupsRequest.Builder(new ListGroupsRequestData).build()
         val listGroupsResponse = sendAndReceive[ListGroupsResponse](listGroupsRequest, socket)
         val errors = listGroupsResponse.errorCounts()
         assertEquals(Collections.singletonMap(Errors.NONE, 1), errors)
         assertEquals(KafkaMetricReporterExceptionHandlingTest.goodReporterRegistered.get, KafkaMetricReporterExceptionHandlingTest.badReporterRegistered.get)
         assertTrue(KafkaMetricReporterExceptionHandlingTest.goodReporterRegistered.get > 0)
-      }
+      })
     } finally {
       socket.close()
     }

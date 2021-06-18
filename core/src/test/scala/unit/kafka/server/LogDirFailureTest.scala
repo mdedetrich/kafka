@@ -87,7 +87,7 @@ class LogDirFailureTest extends IntegrationTestHarness {
       assertTrue(logDir.isFile)
 
       server = TestUtils.createServer(kafkaConfig)
-      TestUtils.waitUntilTrue(() => statusCodeOption.contains(1), "timed out waiting for broker to halt")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => statusCodeOption.contains(1), "timed out waiting for broker to halt"))
     } finally {
       Exit.resetHaltProcedure()
       if (server != null)
@@ -174,11 +174,11 @@ class LogDirFailureTest extends IntegrationTestHarness {
 
     TestUtils.causeLogDirFailure(failureType, leaderServer, partition)
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       // ProduceResponse may contain KafkaStorageException and trigger metadata update
       producer.send(record)
       producer.partitionsFor(topic).asScala.find(_.partition() == 0).get.leader().id() != leaderServerId
-    }, "Expected new leader for the partition", 6000L)
+    }, "Expected new leader for the partition", 6000L))
 
     // Block on send to ensure that new leader accepts a message.
     producer.send(record).get(6000L, TimeUnit.MILLISECONDS)
@@ -198,7 +198,7 @@ class LogDirFailureTest extends IntegrationTestHarness {
 
   private def subscribeAndWaitForAssignment(topic: String, consumer: KafkaConsumer[Array[Byte], Array[Byte]]): Unit = {
     consumer.subscribe(Collections.singletonList(topic))
-    TestUtils.pollUntilTrue(consumer, () => !consumer.assignment.isEmpty, "Expected non-empty assignment")
+    TestUtils.block(TestUtils.pollUntilTrueAsync(consumer, () => !consumer.assignment.isEmpty, "Expected non-empty assignment"))
   }
 
 }

@@ -61,30 +61,30 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
   @Test
   def testEmptyCluster(): Unit = {
     servers = makeServers(1)
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     waitUntilControllerEpoch(firstControllerEpoch, "broker failed to set controller epoch")
   }
 
   @Test
   def testControllerEpochPersistsWhenAllBrokersDown(): Unit = {
     servers = makeServers(1)
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     waitUntilControllerEpoch(firstControllerEpoch, "broker failed to set controller epoch")
     servers.head.shutdown()
     servers.head.awaitShutdown()
-    TestUtils.waitUntilTrue(() => !zkClient.getControllerId.isDefined, "failed to kill controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !zkClient.getControllerId.isDefined, "failed to kill controller"))
     waitUntilControllerEpoch(firstControllerEpoch, "controller epoch was not persisted after broker failure")
   }
 
   @Test
   def testControllerMoveIncrementsControllerEpoch(): Unit = {
     servers = makeServers(1)
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     waitUntilControllerEpoch(firstControllerEpoch, "broker failed to set controller epoch")
     servers.head.shutdown()
     servers.head.awaitShutdown()
     servers.head.startup()
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     waitUntilControllerEpoch(firstControllerEpoch + 1, "controller epoch was not incremented after controller move")
   }
 
@@ -153,7 +153,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
 
     // Startup the broker
     testBroker.startup()
-    TestUtils.waitUntilTrue( () => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync( () => {
       !servers.exists { server =>
         assignment.exists { case (partitionId, replicas) =>
           val partitionInfoOpt = server.metadataCache.getPartitionInfo(topic, partitionId)
@@ -165,7 +165,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
           }
         }
       }
-    }, "Inconsistent metadata after broker startup")
+    }, "Inconsistent metadata after broker startup"))
   }
 
   @Test
@@ -201,7 +201,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
 
     def verifyMetadata(broker: KafkaServer): Unit = {
       broker.startup()
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val partitionInfoOpt = broker.metadataCache.getPartitionInfo(topic, 0)
         if (partitionInfoOpt.isDefined) {
           val partitionInfo = partitionInfoOpt.get
@@ -210,7 +210,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
         } else {
           false
         }
-      }, "Inconsistent metadata after broker startup")
+      }, "Inconsistent metadata after broker startup"))
     }
 
     //Start controller broker and check metadata
@@ -296,10 +296,10 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     zkClient.createPartitionReassignment(reassignment.map { case (k, v) => k -> v.replicas })
     waitForPartitionState(tp, firstControllerEpoch, otherBrokerId, LeaderAndIsr.initialLeaderEpoch + 3,
       "failed to get expected partition state after partition reassignment")
-    TestUtils.waitUntilTrue(() =>  zkClient.getFullReplicaAssignmentForTopics(Set(tp.topic)) == reassignment,
-      "failed to get updated partition assignment on topic znode after partition reassignment")
-    TestUtils.waitUntilTrue(() => !zkClient.reassignPartitionsInProgress,
-      "failed to remove reassign partitions path after completion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>  zkClient.getFullReplicaAssignmentForTopics(Set(tp.topic)) == reassignment,
+      "failed to get updated partition assignment on topic znode after partition reassignment"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !zkClient.reassignPartitionsInProgress,
+      "failed to remove reassign partitions path after completion"))
 
     val updatedTimerCount = timer(metricName).count
     assertTrue(updatedTimerCount > timerCount,
@@ -335,10 +335,10 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     zkClient.createPartitionReassignment(reassignment.map { case (k, v) => k -> v.replicas })
     waitForPartitionState(tp, firstControllerEpoch, otherBrokerId, LeaderAndIsr.initialLeaderEpoch + 3,
       "with an offline log directory on the target broker, the partition reassignment stalls")
-    TestUtils.waitUntilTrue(() =>  zkClient.getFullReplicaAssignmentForTopics(Set(tp.topic)) == reassignment,
-      "failed to get updated partition assignment on topic znode after partition reassignment")
-    TestUtils.waitUntilTrue(() => !zkClient.reassignPartitionsInProgress,
-      "failed to remove reassign partitions path after completion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>  zkClient.getFullReplicaAssignmentForTopics(Set(tp.topic)) == reassignment,
+      "failed to get updated partition assignment on topic znode after partition reassignment"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !zkClient.reassignPartitionsInProgress,
+      "failed to remove reassign partitions path after completion"))
 
     val updatedTimerCount = timer(metricName).count
     assertTrue(updatedTimerCount > timerCount,
@@ -360,8 +360,8 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     zkClient.setOrCreatePartitionReassignment(reassignment, controller.kafkaController.controllerContext.epochZkVersion)
     waitForPartitionState(tp, firstControllerEpoch, controllerId, LeaderAndIsr.initialLeaderEpoch + 1,
       "failed to get expected partition state during partition reassignment with offline replica")
-    TestUtils.waitUntilTrue(() => zkClient.reassignPartitionsInProgress,
-      "partition reassignment path should remain while reassignment in progress")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.reassignPartitionsInProgress,
+      "partition reassignment path should remain while reassignment in progress"))
   }
 
   @Test
@@ -381,10 +381,10 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     servers(otherBrokerId).startup()
     waitForPartitionState(tp, firstControllerEpoch, otherBrokerId, LeaderAndIsr.initialLeaderEpoch + 4,
       "failed to get expected partition state after partition reassignment")
-    TestUtils.waitUntilTrue(() => zkClient.getFullReplicaAssignmentForTopics(Set(tp.topic)) == reassignment,
-      "failed to get updated partition assignment on topic znode after partition reassignment")
-    TestUtils.waitUntilTrue(() => !zkClient.reassignPartitionsInProgress,
-      "failed to remove reassign partitions path after completion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getFullReplicaAssignmentForTopics(Set(tp.topic)) == reassignment,
+      "failed to get updated partition assignment on topic znode after partition reassignment"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !zkClient.reassignPartitionsInProgress,
+      "failed to remove reassign partitions path after completion"))
   }
 
   @Test
@@ -421,8 +421,8 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     servers(otherBrokerId).shutdown()
     servers(otherBrokerId).awaitShutdown()
     zkClient.createPreferredReplicaElection(Set(tp))
-    TestUtils.waitUntilTrue(() => !zkClient.pathExists(PreferredReplicaElectionZNode.path),
-      "failed to remove preferred replica leader election path after giving up")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !zkClient.pathExists(PreferredReplicaElectionZNode.path),
+      "failed to remove preferred replica leader election path after giving up"))
     waitForPartitionState(tp, firstControllerEpoch, controllerId, LeaderAndIsr.initialLeaderEpoch + 1,
       "failed to get expected partition state upon broker shutdown")
   }
@@ -456,12 +456,12 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       "failed to get expected partition state upon topic creation")
     servers(otherBrokerId).shutdown()
     servers(otherBrokerId).awaitShutdown()
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val leaderIsrAndControllerEpochMap = zkClient.getTopicPartitionStates(Seq(tp))
       leaderIsrAndControllerEpochMap.contains(tp) &&
         isExpectedPartitionState(leaderIsrAndControllerEpochMap(tp), firstControllerEpoch, LeaderAndIsr.NoLeader, LeaderAndIsr.initialLeaderEpoch + 1) &&
         leaderIsrAndControllerEpochMap(tp).leaderAndIsr.isr == List(otherBrokerId)
-    }, "failed to get expected partition state after entire isr went offline")
+    }, "failed to get expected partition state after entire isr went offline"))
   }
 
   @Test
@@ -476,12 +476,12 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       "failed to get expected partition state upon topic creation")
     servers(otherBrokerId).shutdown()
     servers(otherBrokerId).awaitShutdown()
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val leaderIsrAndControllerEpochMap = zkClient.getTopicPartitionStates(Seq(tp))
       leaderIsrAndControllerEpochMap.contains(tp) &&
         isExpectedPartitionState(leaderIsrAndControllerEpochMap(tp), firstControllerEpoch, LeaderAndIsr.NoLeader, LeaderAndIsr.initialLeaderEpoch + 1) &&
         leaderIsrAndControllerEpochMap(tp).leaderAndIsr.isr == List(otherBrokerId)
-    }, "failed to get expected partition state after entire isr went offline")
+    }, "failed to get expected partition state after entire isr went offline"))
   }
 
   @Test
@@ -503,9 +503,9 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     var partitionsRemaining = resultQueue.take().get
     var activeServers = servers.filter(s => s.config.brokerId != 2)
     // wait for the update metadata request to trickle to the brokers
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       activeServers.forall(_.dataPlaneRequestProcessor.metadataCache.getPartitionInfo(topic,partition).get.isr.size != 3),
-      "Topic test not created after timeout")
+      "Topic test not created after timeout"))
     assertEquals(0, partitionsRemaining.size)
     var partitionStateInfo = activeServers.head.dataPlaneRequestProcessor.metadataCache.getPartitionInfo(topic,partition).get
     var leaderAfterShutdown = partitionStateInfo.leader
@@ -545,7 +545,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       case _ =>
     })
 
-    TestUtils.waitUntilTrue(() => staleBrokerEpochDetected, "Fail to detect stale broker epoch")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => staleBrokerEpochDetected, "Fail to detect stale broker epoch"))
   }
 
   @Test
@@ -642,9 +642,9 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       "failed to get expected partition state upon topic creation")
 
     // Wait until the event thread is idle
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       controller.eventManager.state == ControllerState.Idle
-    }, "Controller event thread is still busy")
+    }, "Controller event thread is still busy"))
 
     val latch = new CountDownLatch(1)
 
@@ -663,11 +663,11 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
 
     // Release the latch so that controller can process broker change event
     latch.countDown()
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       otherBroker.replicaManager.partitionCount.value() == 1 &&
       otherBroker.replicaManager.metadataCache.getAllTopics().size == 1 &&
       otherBroker.replicaManager.metadataCache.getAliveBrokers.size == 2
-    }, "Broker fail to initialize after restart")
+    }, "Broker fail to initialize after restart"))
   }
 
   @Test
@@ -695,9 +695,9 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       latch.countDown()
     }).doCallRealMethod().when(spyThread).awaitShutdown()
     controller.shutdown()
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       count == 0
-    }, "preemption was not fully completed before shutdown")
+    }, "preemption was not fully completed before shutdown"))
 
     verify(spyThread).awaitShutdown()
   }
@@ -999,8 +999,8 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       "topic ID changed after partition additions")
 
     adminZkClient.deleteTopic(tp.topic)
-    TestUtils.waitUntilTrue(() => servers.head.kafkaController.controllerContext.topicIds.get(tp.topic).isEmpty,
-      "topic ID for topic should have been removed from controller context after deletion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.head.kafkaController.controllerContext.topicIds.get(tp.topic).isEmpty,
+      "topic ID for topic should have been removed from controller context after deletion"))
   }
 
   @Test
@@ -1025,8 +1025,8 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       "topic ID changed after partition additions")
 
     adminZkClient.deleteTopic(tp.topic)
-    TestUtils.waitUntilTrue(() => !servers.head.kafkaController.controllerContext.allTopics.contains(tp.topic),
-      "topic should have been removed from controller context after deletion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !servers.head.kafkaController.controllerContext.allTopics.contains(tp.topic),
+      "topic should have been removed from controller context after deletion"))
   }
 
   @Test
@@ -1043,7 +1043,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
 
     servers(controllerId).shutdown()
     servers(controllerId).awaitShutdown()
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     val controller2 = getController().kafkaController
     assertEquals(topicId, controller2.controllerContext.topicIds.get("t").get)
   }
@@ -1063,7 +1063,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
 
     servers(controllerId).shutdown()
     servers(controllerId).awaitShutdown()
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     val controller2 = getController().kafkaController
     assertEquals(emptyTopicId, controller2.controllerContext.topicIds.get("t"))
   }
@@ -1083,7 +1083,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     servers(controllerId).shutdown()
     servers(controllerId).awaitShutdown()
     servers(controllerId).startup()
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     val controller2 = getController().kafkaController
     assertEquals(topicId, controller2.controllerContext.topicIds.get("t").get)
   }
@@ -1106,7 +1106,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     servers(controllerId).shutdown()
     servers(controllerId).awaitShutdown()
     servers = makeServers(1)
-    TestUtils.waitUntilTrue(() => zkClient.getControllerId.isDefined, "failed to elect a controller")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerId.isDefined, "failed to elect a controller"))
     val topicIdAfterUpgrade = zkClient.getTopicIdsForTopics(Set(tp.topic())).get(tp.topic())
     assertNotEquals(emptyTopicId, topicIdAfterUpgrade)
     val controller2 = getController().kafkaController
@@ -1116,8 +1116,8 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     assertEquals("t", controller2.controllerContext.topicNames(topicId))
 
     adminZkClient.deleteTopic(tp.topic)
-    TestUtils.waitUntilTrue(() => !servers.head.kafkaController.controllerContext.allTopics.contains(tp.topic),
-      "topic should have been removed from controller context after deletion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !servers.head.kafkaController.controllerContext.allTopics.contains(tp.topic),
+      "topic should have been removed from controller context after deletion"))
   }
 
   @Test
@@ -1193,8 +1193,8 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
       "correct topic name expected but cannot be found in the controller context")
 
     adminZkClient.deleteTopic(tp.topic)
-    TestUtils.waitUntilTrue(() => servers.head.kafkaController.controllerContext.topicIds.get(tp.topic).isEmpty,
-      "topic ID for topic should have been removed from controller context after deletion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.head.kafkaController.controllerContext.topicIds.get(tp.topic).isEmpty,
+      "topic ID for topic should have been removed from controller context after deletion"))
     assertTrue(servers.head.kafkaController.controllerContext.topicNames.get(topicIdAfterUpgrade.get).isEmpty)
   }
 
@@ -1204,9 +1204,9 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     val previousLevel = LogCaptureAppender.setClassLoggerLevel(controller.getClass, Level.INFO)
 
     try {
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         controller.eventManager.state == ControllerState.Idle
-      }, "Controller event thread is still busy")
+      }, "Controller event thread is still busy"))
 
       val latch = new CountDownLatch(1)
 
@@ -1226,7 +1226,7 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
 
       // Resume the controller event thread. At this point, the controller should see mismatch controller epoch zkVersion and resign
       latch.countDown()
-      TestUtils.waitUntilTrue(() => !controller.isActive, "Controller fails to resign")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => !controller.isActive, "Controller fails to resign"))
 
       // Expect to capture the ControllerMovedException in the log of ControllerEventThread
       val event = appender.getMessages.find(e => e.getLevel == Level.INFO
@@ -1247,16 +1247,16 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
     waitForPartitionState(tp, firstControllerEpoch, controllerId, leaderEpoch + 1,
       "failed to get expected partition state upon broker shutdown")
     otherBroker.startup()
-    TestUtils.waitUntilTrue(() => zkClient.getInSyncReplicasForPartition(new TopicPartition(tp.topic, tp.partition)).get.toSet == replicas, "restarted broker failed to join in-sync replicas")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getInSyncReplicasForPartition(new TopicPartition(tp.topic, tp.partition)).get.toSet == replicas, "restarted broker failed to join in-sync replicas"))
     zkClient.createPreferredReplicaElection(Set(tp))
-    TestUtils.waitUntilTrue(() => !zkClient.pathExists(PreferredReplicaElectionZNode.path),
-      "failed to remove preferred replica leader election path after completion")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !zkClient.pathExists(PreferredReplicaElectionZNode.path),
+      "failed to remove preferred replica leader election path after completion"))
     waitForPartitionState(tp, firstControllerEpoch, otherBroker.config.brokerId, leaderEpoch + 2,
       "failed to get expected partition state upon broker startup")
   }
 
   private def waitUntilControllerEpoch(epoch: Int, message: String): Unit = {
-    TestUtils.waitUntilTrue(() => zkClient.getControllerEpoch.map(_._1).contains(epoch) , message)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getControllerEpoch.map(_._1).contains(epoch) , message))
   }
 
   private def waitForPartitionState(tp: TopicPartition,
@@ -1264,11 +1264,11 @@ class ControllerIntegrationTest extends ZooKeeperTestHarness {
                                     leader: Int,
                                     leaderEpoch: Int,
                                     message: String): Unit = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val leaderIsrAndControllerEpochMap = zkClient.getTopicPartitionStates(Seq(tp))
       leaderIsrAndControllerEpochMap.contains(tp) &&
         isExpectedPartitionState(leaderIsrAndControllerEpochMap(tp), controllerEpoch, leader, leaderEpoch)
-    }, message)
+    }, message))
   }
 
   private def isExpectedPartitionState(leaderIsrAndControllerEpoch: LeaderIsrAndControllerEpoch,

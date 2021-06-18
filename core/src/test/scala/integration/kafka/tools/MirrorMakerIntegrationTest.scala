@@ -110,7 +110,7 @@ class MirrorMakerIntegrationTest extends KafkaServerTestHarness {
     val mirrorMakerConsumer = new ConsumerWrapper(consumer, None, whitelistOpt = Some("another_topic,new.*,foo"))
     mirrorMakerConsumer.init()
     try {
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         try {
           val data = mirrorMakerConsumer.receive()
           data.topic == topic && new String(data.value) == msg
@@ -118,7 +118,7 @@ class MirrorMakerIntegrationTest extends KafkaServerTestHarness {
           // these exceptions are thrown if no records are returned within the timeout, so safe to ignore
           case _: NoRecordsException => false
         }
-      }, "MirrorMaker consumer should read the expected message from the expected topic within the timeout")
+      }, "MirrorMaker consumer should read the expected message from the expected topic within the timeout"))
     } finally consumer.close()
   }
 

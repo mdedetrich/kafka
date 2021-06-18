@@ -52,16 +52,16 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
     val logProps = new Properties()
     logProps.put(FlushMessagesProp, oldVal.toString)
     createTopic(tp.topic, 1, 1, logProps)
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       val logOpt = this.servers.head.logManager.getLog(tp)
       assertTrue(logOpt.isDefined)
       assertEquals(oldVal, logOpt.get.config.flushInterval)
-    }
+    })
     logProps.put(FlushMessagesProp, newVal.toString)
     adminZkClient.changeTopicConfig(tp.topic, logProps)
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       assertEquals(newVal, this.servers.head.logManager.getLog(tp).get.config.flushInterval)
-    }
+    })
   }
 
   @Test
@@ -71,20 +71,20 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
     val logProps = new Properties()
     logProps.put(SegmentBytesProp, oldSegmentSize.toString)
     createTopic(tp.topic, 1, 1, logProps)
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       val logOpt = this.servers.head.logManager.getLog(tp)
       assertTrue(logOpt.isDefined)
       assertEquals(oldSegmentSize, logOpt.get.config.segmentSize)
-    }
+    })
 
     val log = servers.head.logManager.getLog(tp).get
 
     val newSegmentSize = 2000
     logProps.put(SegmentBytesProp, newSegmentSize.toString)
     adminZkClient.changeTopicConfig(tp.topic, logProps)
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       assertEquals(newSegmentSize, log.config.segmentSize)
-    }
+    })
 
     (1 to 50).foreach(i => TestUtils.produceMessage(servers, tp.topic, i.toString))
     // Verify that the new config is used for all segments
@@ -103,7 +103,7 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
       case _ => adminZkClient.changeUserOrUserClientIdConfig(configEntityName, props)
     }
 
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       val overrideProducerQuota = quotaManagers.produce.quota(user, clientId)
       val overrideConsumerQuota = quotaManagers.fetch.quota(user, clientId)
 
@@ -111,7 +111,7 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
         overrideProducerQuota, s"User $user clientId $clientId must have overridden producer quota of 1000")
       assertEquals(Quota.upperBound(2000),
         overrideConsumerQuota, s"User $user clientId $clientId must have overridden consumer quota of 2000")
-    }
+    })
 
     val defaultProducerQuota = Long.MaxValue.asInstanceOf[Double]
     val defaultConsumerQuota = Long.MaxValue.asInstanceOf[Double]
@@ -121,7 +121,7 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
       case ConfigType.Client => adminZkClient.changeClientIdConfig(configEntityName, emptyProps)
       case _ => adminZkClient.changeUserOrUserClientIdConfig(configEntityName, emptyProps)
     }
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       val producerQuota = quotaManagers.produce.quota(user, clientId)
       val consumerQuota = quotaManagers.fetch.quota(user, clientId)
 
@@ -129,7 +129,7 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
         producerQuota, s"User $user clientId $clientId must have reset producer quota to " + defaultProducerQuota)
       assertEquals(Quota.upperBound(defaultConsumerQuota),
         consumerQuota, s"User $user clientId $clientId must have reset consumer quota to " + defaultConsumerQuota)
-    }
+    })
   }
 
   @Test
@@ -240,10 +240,10 @@ class DynamicConfigChangeTest extends KafkaServerTestHarness {
     val connectionQuotas = servers.head.socketServer.connectionQuotas
 
     def verifyConnectionQuota(ip: InetAddress, expectedQuota: Integer) = {
-      TestUtils.retry(10000) {
+      TestUtils.block(TestUtils.retryAsync(10000) {
         val quota = connectionQuotas.connectionRateForIp(ip)
         assertEquals(expectedQuota, quota, s"Unexpected quota for IP $ip")
-      }
+      })
     }
 
     verifyConnectionQuota(overrideQuotaIp, 10)

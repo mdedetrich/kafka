@@ -24,10 +24,10 @@ import java.nio.file.{Files, StandardOpenOption}
 import java.security.cert.X509Certificate
 import java.time.Duration
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
-import java.util.concurrent.{Callable, ExecutionException, Executors, TimeUnit}
+import java.util.concurrent.{Callable, ExecutionException, Executors, ScheduledExecutorService, TimeUnit}
 import java.util.{Arrays, Collections, Properties}
-
 import com.yammer.metrics.core.Meter
+
 import javax.net.ssl.X509TrustManager
 import kafka.api._
 import kafka.cluster.{Broker, EndPoint, IsrChangeListener}
@@ -70,8 +70,9 @@ import org.junit.jupiter.api.Assertions._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.{Map, Seq, mutable}
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters._
+import scala.util.control.NonFatal
 
 /**
  * Utility functions to help with testing
@@ -760,6 +761,25 @@ object TestUtils extends Logging {
     }
   }
 
+  def block[T](future: Future[T]): T =
+    Await.result(future, FiniteDuration(JTestUtils.ASYNC_BLOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS))
+
+  def after[T](duration: FiniteDuration, scheduler: ScheduledExecutorService)(value: => Future[T]): Future[T] =
+    if (duration.isFinite && duration.length < 1) {
+      try value
+      catch { case NonFatal(t) => Future.failed(t) }
+    } else {
+      val p = Promise[T]()
+      scheduler.schedule(new Runnable {
+        override def run(): Unit = p.completeWith {
+          try value
+          catch { case NonFatal(t) => Future.failed(t) }
+        }
+      }, duration.length, duration.unit)
+      p.future
+    }
+
+
   /**
    * Execute the given block. If it throws an assert error, retry. Repeat
    * until no error is thrown or the time limit elapses
@@ -785,6 +805,41 @@ object TestUtils extends Logging {
     }
   }
 
+  def retryAsync(maxWaitMs: Long,
+                 scheduler: ScheduledExecutorService = JTestUtils.EXECUTOR_SERVICE)(block: => Unit): Future[Unit] =
+    retryAsyncRec(maxWaitMs, FiniteDuration(1, TimeUnit.MILLISECONDS), 0, System.currentTimeMillis(), scheduler)(block)
+
+
+  private def retryAsyncRec(maxWaitMs: Long,
+                            delay: FiniteDuration,
+                            currentWait: Long,
+                            startTime: Long,
+                            scheduler: ScheduledExecutorService,
+                            firstTime: Boolean = true)(block: => Unit): Future[Unit] = {
+    val finalDelay = if (firstTime) FiniteDuration(0, TimeUnit.MILLISECONDS) else delay
+    after(finalDelay,scheduler) {
+      try {
+        block
+        Future.successful(())
+      } catch {
+        case e: AssertionError =>
+          val elapsed = System.currentTimeMillis - startTime
+          if (elapsed > maxWaitMs) {
+            Future.failed(e)
+          } else {
+            info("Attempt failed, sleeping for " + currentWait + ", and then retrying.")
+            retryAsyncRec(
+              maxWaitMs,
+              finalDelay,
+              currentWait + math.min(currentWait, 1000),
+              startTime,
+              scheduler,
+              firstTime = false)(block)
+          }
+      }
+    }
+  }
+
   def pollUntilTrue(consumer: Consumer[_, _],
                     action: () => Boolean,
                     msg: => String,
@@ -793,6 +848,17 @@ object TestUtils extends Logging {
       consumer.poll(Duration.ofMillis(100))
       action()
     }, msg = msg, pause = 0L, waitTimeMs = waitTimeMs)
+  }
+
+  def pollUntilTrueAsync(consumer: Consumer[_, _],
+                        action: () => Boolean,
+                        msg: => String,
+                        waitTimeMs: Long = JTestUtils.DEFAULT_MAX_WAIT_MS,
+                        scheduler: ScheduledExecutorService = JTestUtils.EXECUTOR_SERVICE): Future[Unit] = {
+    waitUntilTrueAsync(() => {
+      consumer.poll(Duration.ofMillis(100))
+      action()
+    }, msg = msg, pause = 0L, waitTimeMs = waitTimeMs, scheduler = scheduler)
   }
 
   def pollRecordsUntilTrue[K, V](consumer: Consumer[K, V],
@@ -805,6 +871,17 @@ object TestUtils extends Logging {
     }, msg = msg, pause = 0L, waitTimeMs = waitTimeMs)
   }
 
+  def pollRecordsUntilTrueAsync[K, V](consumer: Consumer[K, V],
+                                      action: ConsumerRecords[K, V] => Boolean,
+                                      msg: => String,
+                                      waitTimeMs: Long = JTestUtils.DEFAULT_MAX_WAIT_MS,
+                                      scheduler: ScheduledExecutorService = JTestUtils.EXECUTOR_SERVICE): Future[Unit] = {
+    waitUntilTrueAsync(() => {
+      val records = consumer.poll(Duration.ofMillis(100))
+      action(records)
+    }, msg = msg, pause = 0L, waitTimeMs = waitTimeMs, scheduler = scheduler)
+  }
+
   def subscribeAndWaitForRecords(topic: String,
                                  consumer: KafkaConsumer[Array[Byte], Array[Byte]],
                                  waitTimeMs: Long = JTestUtils.DEFAULT_MAX_WAIT_MS): Unit = {
@@ -814,6 +891,19 @@ object TestUtils extends Logging {
       (records: ConsumerRecords[Array[Byte], Array[Byte]]) => !records.isEmpty,
       "Expected records",
       waitTimeMs)
+  }
+
+  def subscribeAndWaitForRecordsAsync(topic: String,
+                                      consumer: KafkaConsumer[Array[Byte], Array[Byte]],
+                                      waitTimeMs: Long = JTestUtils.DEFAULT_MAX_WAIT_MS,
+                                      scheduler: ScheduledExecutorService = JTestUtils.EXECUTOR_SERVICE): Future[Unit] = {
+    consumer.subscribe(Collections.singletonList(topic))
+    pollRecordsUntilTrueAsync(
+      consumer,
+      (records: ConsumerRecords[Array[Byte], Array[Byte]]) => !records.isEmpty,
+      "Expected records",
+      waitTimeMs,
+      scheduler)
   }
 
   /**
@@ -831,6 +921,39 @@ object TestUtils extends Logging {
       value.isDefined
     }, msg, waitTimeMs)
     value.get
+  }
+
+  def awaitValueAsync[T](func: () => Option[T],
+                         msg: => String,
+                         waitTimeMs: Long = JTestUtils.DEFAULT_MAX_WAIT_MS,
+                         scheduler: ScheduledExecutorService = JTestUtils.EXECUTOR_SERVICE): Future[T] =
+    awaitValueAsyncRec(
+      func,
+      msg,
+      waitTimeMs,
+      FiniteDuration(waitTimeMs.min(100L), TimeUnit.MILLISECONDS),
+      System.currentTimeMillis(),
+      scheduler
+    )
+
+  private def awaitValueAsyncRec[T](func: () => Option[T],
+                                    msg: => String,
+                                    waitTimeMs: Long,
+                                    delay: FiniteDuration,
+                                    startTime: Long,
+                                    scheduler: ScheduledExecutorService,
+                                    firstTime: Boolean = true): Future[T] = {
+    val finalDelay = if (firstTime) FiniteDuration(0, TimeUnit.MILLISECONDS) else delay
+    after(finalDelay, scheduler) {
+      func() match {
+        case Some(value) => Future.successful(value)
+        case None =>
+          if (System.currentTimeMillis() > startTime + waitTimeMs)
+            Future.failed(fail(msg))
+          else
+            awaitValueAsyncRec(func, msg, waitTimeMs, delay, startTime, scheduler, firstTime = false)
+      }
+    }
   }
 
   /**
@@ -856,15 +979,60 @@ object TestUtils extends Logging {
     throw new RuntimeException("unexpected error")
   }
 
+  /**waitUntilTrueAsync
+   * Wait until the given condition is true or return a failed future if the given wait time elapses.
+   * This version uses an asynchronous IO over a fixed thread pool for better usage of system resource
+   * @param condition condition to check
+   * @param msg error message
+   * @param waitTimeMs maximum time to wait and retest the condition before failing the test
+   * @param pause delay between condition checks
+   * @return A failed Future with an assertion exception containing `msg`
+   */
+  def waitUntilTrueAsync(condition: () => Boolean, msg: => String,
+                         waitTimeMs: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L,
+                         scheduler: ScheduledExecutorService = JTestUtils.EXECUTOR_SERVICE): Future[Unit] =
+    waitUntilTrueAsyncRec(
+      condition,
+      msg,
+      waitTimeMs,
+      FiniteDuration(waitTimeMs.min(pause), TimeUnit.MILLISECONDS),
+      System.currentTimeMillis(),
+      scheduler
+    )
+
   /**
-    * Invoke `compute` until `predicate` is true or `waitTime` elapses.
-    *
-    * Return the last `compute` result and a boolean indicating whether `predicate` succeeded for that value.
-    *
-    * This method is useful in cases where `waitUntilTrue` makes it awkward to provide good error messages.
-    */
-  def computeUntilTrue[T](compute: => T, waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L)(
-                          predicate: T => Boolean): (T, Boolean) = {
+   * @param firstTime Whether this function is being called for the first time (since we want to immediately check the
+   *                  condition)
+   */
+  private def waitUntilTrueAsyncRec(condition: () => Boolean,
+                                    msg: => String,
+                                    waitTimeMs: Long,
+                                    delay: FiniteDuration,
+                                    startTime: Long,
+                                    scheduler: ScheduledExecutorService,
+                                    firstTime: Boolean = true): Future[Unit] = {
+    val finalDelay = if (firstTime) FiniteDuration(0, TimeUnit.MILLISECONDS) else delay
+    after(finalDelay, scheduler) {
+      if (condition())
+        Future.successful(())
+      else {
+        if (System.currentTimeMillis() > startTime + waitTimeMs)
+          Future.failed(fail(msg))
+        else
+          waitUntilTrueAsyncRec(condition, msg, waitTimeMs, delay, startTime, scheduler, firstTime = false)
+      }
+    }
+  }
+
+  /**
+   * Invoke `compute` until `predicate` is true or `waitTime` elapses.
+   *
+   * Return the last `compute` result and a boolean indicating whether `predicate` succeeded for that value.
+   *
+   * This method is useful in cases where `waitUntilTrue` makes it awkward to provide good error messages.
+   */
+  def computeUntilTrue[T](compute: => T, waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L)
+                         (predicate: T => Boolean): (T, Boolean) = {
     val startTime = System.currentTimeMillis()
     while (true) {
       val result = compute
@@ -878,6 +1046,37 @@ object TestUtils extends Logging {
     throw new RuntimeException("unexpected error")
   }
 
+  def computeUntilTrueAsync[T](compute: => T,
+                               waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS,
+                               pause: Long = 100L,
+                               scheduler: ScheduledExecutorService = JTestUtils.EXECUTOR_SERVICE)(
+                               predicate: T => Boolean): Future[(T, Boolean)] =
+    computeUntilTrueAsyncRec(
+      compute,
+      waitTime,
+      FiniteDuration(waitTime.min(pause), TimeUnit.MILLISECONDS),
+      System.currentTimeMillis(),
+      scheduler
+    )(predicate)
+
+  private def computeUntilTrueAsyncRec[T](compute: => T,
+                                          waitTime: Long,
+                                          delay: FiniteDuration,
+                                          startTime: Long,
+                                          scheduler: ScheduledExecutorService,
+                                          firstTime: Boolean = true)(predicate: T => Boolean): Future[(T, Boolean)] = {
+    val finalDelay = if (firstTime) FiniteDuration(0, TimeUnit.MILLISECONDS) else delay
+    after(finalDelay, scheduler) {
+      val result = compute
+      if (predicate(result))
+        Future.successful(result -> true)
+      else if (System.currentTimeMillis() > startTime + waitTime)
+        Future.successful(result -> false)
+      else
+        computeUntilTrueAsyncRec(compute, waitTime, delay, startTime, scheduler, firstTime = false)(predicate)
+    }
+  }
+
   /**
    * Invoke `assertions` until no AssertionErrors are thrown or `waitTime` elapses.
    *
@@ -886,14 +1085,14 @@ object TestUtils extends Logging {
    * easily wait on a condition before evaluating the assertions.
    */
   def tryUntilNoAssertionError(waitTime: Long = JTestUtils.DEFAULT_MAX_WAIT_MS, pause: Long = 100L)(assertions: => Unit) = {
-    val (error, success) = TestUtils.computeUntilTrue({
+    val (error, success) = TestUtils.block(TestUtils.computeUntilTrueAsync({
       try {
         assertions
         None
       } catch {
         case ae: AssertionError => Some(ae)
       }
-    }, waitTime = waitTime, pause = pause)(_.isEmpty)
+    }, waitTime = waitTime, pause = pause)(_.isEmpty))
 
     if (!success) {
       throw error.get
@@ -993,7 +1192,7 @@ object TestUtils extends Logging {
   }
 
   def waitUntilControllerElected(zkClient: KafkaZkClient, timeout: Long = JTestUtils.DEFAULT_MAX_WAIT_MS): Int = {
-    val (controllerId, _) = computeUntilTrue(zkClient.getControllerId, waitTime = timeout)(_.isDefined)
+    val (controllerId, _) = block(computeUntilTrueAsync(zkClient.getControllerId, waitTime = timeout)(_.isDefined))
     controllerId.getOrElse(throw new AssertionError(s"Controller not elected after $timeout ms"))
   }
 
@@ -1472,9 +1671,9 @@ object TestUtils extends Logging {
       records ++= polledRecords.asScala
       records.size >= numRecords
     }
-    pollRecordsUntilTrue(consumer, pollAction,
+    block(pollRecordsUntilTrueAsync(consumer, pollAction,
       waitTimeMs = waitTimeMs,
-      msg = s"Consumed ${records.size} records before timeout instead of the expected $numRecords records")
+      msg = s"Consumed ${records.size} records before timeout instead of the expected $numRecords records"))
     records
   }
 

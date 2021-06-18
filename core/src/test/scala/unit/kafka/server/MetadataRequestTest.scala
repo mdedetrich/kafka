@@ -69,10 +69,10 @@ class MetadataRequestTest extends AbstractMetadataRequestTest {
     val controllerServer2 = servers.find(_.kafkaController.isActive).get
     val controllerId2 = controllerServer2.config.brokerId
     assertNotEquals(controllerId, controllerId2, "Controller id should switch to a new broker")
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val metadataResponse2 = sendMetadataRequest(MetadataRequest.Builder.allTopics.build(1.toShort))
       metadataResponse2.controller != null && controllerServer2.dataPlaneRequestProcessor.brokerId == metadataResponse2.controller.id
-    }, "Controller id should match the active controller after failover", 5000)
+    }, "Controller id should match the active controller after failover", 5000))
   }
 
   @Test
@@ -280,10 +280,10 @@ class MetadataRequestTest extends AbstractMetadataRequestTest {
     }.get
     downNode.shutdown()
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val response = sendMetadataRequest(new MetadataRequest.Builder(List(replicaDownTopic).asJava, true).build())
       !response.brokers.asScala.exists(_.id == downNode.dataPlaneRequestProcessor.brokerId)
-    }, "Replica was not found down", 5000)
+    }, "Replica was not found down", 5000))
 
     // Validate version 0 still filters unavailable replicas and contains error
     val v0MetadataResponse = sendMetadataRequest(new MetadataRequest(requestData(List(replicaDownTopic), true), 0.toShort))
@@ -315,7 +315,7 @@ class MetadataRequestTest extends AbstractMetadataRequestTest {
       // Assert that topic metadata at new brokers is updated correctly
       activeBrokers.foreach { broker =>
         var actualIsr = Set.empty[Int]
-        TestUtils.waitUntilTrue(() => {
+        TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
           val metadataResponse = sendMetadataRequest(new MetadataRequest.Builder(Seq(topic).asJava, false).build,
             Some(brokerSocketServer(broker.config.brokerId)))
           val firstPartitionMetadata = metadataResponse.topicMetadata.asScala.headOption.flatMap(_.partitionMetadata.asScala.headOption)
@@ -325,7 +325,7 @@ class MetadataRequestTest extends AbstractMetadataRequestTest {
           expectedIsr == actualIsr
         }, s"Topic metadata not updated correctly in broker $broker\n" +
           s"Expected ISR: $expectedIsr \n" +
-          s"Actual ISR : $actualIsr")
+          s"Actual ISR : $actualIsr"))
       }
     }
 
@@ -344,25 +344,25 @@ class MetadataRequestTest extends AbstractMetadataRequestTest {
   def testAliveBrokersWithNoTopics(): Unit = {
     def checkMetadata(servers: Seq[KafkaServer], expectedBrokersCount: Int): Unit = {
       var controllerMetadataResponse: Option[MetadataResponse] = None
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val metadataResponse = sendMetadataRequest(MetadataRequest.Builder.allTopics.build,
           Some(controllerSocketServer))
         controllerMetadataResponse = Some(metadataResponse)
         metadataResponse.brokers.size == expectedBrokersCount
       }, s"Expected $expectedBrokersCount brokers, but there are ${controllerMetadataResponse.get.brokers.size} " +
-        "according to the Controller")
+        "according to the Controller"))
 
       val brokersInController = controllerMetadataResponse.get.brokers.asScala.toSeq.sortBy(_.id)
 
       // Assert that metadata is propagated correctly
       servers.filter(_.brokerState != BrokerState.NOT_RUNNING).foreach { broker =>
-        TestUtils.waitUntilTrue(() => {
+        TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
           val metadataResponse = sendMetadataRequest(MetadataRequest.Builder.allTopics.build,
             Some(brokerSocketServer(broker.config.brokerId)))
           val brokers = metadataResponse.brokers.asScala.toSeq.sortBy(_.id)
           val topicMetadata = metadataResponse.topicMetadata.asScala.toSeq.sortBy(_.topic)
           brokersInController == brokers && metadataResponse.topicMetadata.asScala.toSeq.sortBy(_.topic) == topicMetadata
-        }, s"Topic metadata not updated correctly")
+        }, s"Topic metadata not updated correctly"))
       }
     }
 

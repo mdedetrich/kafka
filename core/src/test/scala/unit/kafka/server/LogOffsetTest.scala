@@ -69,8 +69,8 @@ class LogOffsetTest extends BaseRequestTest {
     createTopic(topic, 1, 1)
 
     val logManager = server.getLogManager
-    TestUtils.waitUntilTrue(() => logManager.getLog(topicPartition).isDefined,
-                  "Log for partition [topic,0] should be created")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => logManager.getLog(topicPartition).isDefined,
+                  "Log for partition [topic,0] should be created"))
     val log = logManager.getLog(topicPartition).get
 
     for (_ <- 0 until 20)
@@ -84,8 +84,8 @@ class LogOffsetTest extends BaseRequestTest {
     val offsets = log.legacyFetchOffsetsBefore(ListOffsetsRequest.LATEST_TIMESTAMP, 15)
     assertEquals(Seq(20L, 18L, 16L, 14L, 12L, 10L, 8L, 6L, 4L, 3L), offsets)
 
-    TestUtils.waitUntilTrue(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
-      "Leader should be elected")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
+      "Leader should be elected"))
     val request = ListOffsetsRequest.Builder.forReplica(0, 0)
       .setTargetTimes(buildTargetTimes(topicPartition, ListOffsetsRequest.LATEST_TIMESTAMP, 15).asJava).build()
     val consumerOffsets = findPartition(sendListOffsetsRequest(request).topics.asScala, topicPartition).oldStyleOffsets.asScala
@@ -100,8 +100,8 @@ class LogOffsetTest extends BaseRequestTest {
     createTopic(topic, 1, 1)
 
     val logManager = server.getLogManager
-    TestUtils.waitUntilTrue(() => logManager.getLog(topicPartition).isDefined,
-      s"Log for partition $topicPartition should be created")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => logManager.getLog(topicPartition).isDefined,
+      s"Log for partition $topicPartition should be created"))
     val log = logManager.getLog(topicPartition).get
 
     for (_ <- 0 until 20)
@@ -111,8 +111,8 @@ class LogOffsetTest extends BaseRequestTest {
     val offsets = log.legacyFetchOffsetsBefore(ListOffsetsRequest.LATEST_TIMESTAMP, 15)
     assertEquals(Seq(20L, 18L, 16L, 14L, 12L, 10L, 8L, 6L, 4L, 2L, 0L), offsets)
 
-    TestUtils.waitUntilTrue(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
-      "Leader should be elected")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
+      "Leader should be elected"))
     val request = ListOffsetsRequest.Builder.forReplica(0, 0)
       .setTargetTimes(buildTargetTimes(topicPartition, ListOffsetsRequest.LATEST_TIMESTAMP, 15).asJava).build()
     val consumerOffsets = findPartition(sendListOffsetsRequest(request).topics.asScala, topicPartition).oldStyleOffsets.asScala
@@ -170,8 +170,8 @@ class LogOffsetTest extends BaseRequestTest {
     val offsets = log.legacyFetchOffsetsBefore(now, 15)
     assertEquals(Seq(20L, 18L, 16L, 14L, 12L, 10L, 8L, 6L, 4L, 2L, 0L), offsets)
 
-    TestUtils.waitUntilTrue(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
-      "Leader should be elected")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
+      "Leader should be elected"))
     val request = ListOffsetsRequest.Builder.forReplica(0, 0)
       .setTargetTimes(buildTargetTimes(topicPartition, now, 15).asJava).build()
     val consumerOffsets = findPartition(sendListOffsetsRequest(request).topics.asScala, topicPartition).oldStyleOffsets.asScala
@@ -197,8 +197,8 @@ class LogOffsetTest extends BaseRequestTest {
 
     assertEquals(Seq(0L), offsets)
 
-    TestUtils.waitUntilTrue(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
-      "Leader should be elected")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => TestUtils.isLeaderLocalOnBroker(topic, topicPartition.partition, server),
+      "Leader should be elected"))
     val request = ListOffsetsRequest.Builder.forReplica(0, 0)
       .setTargetTimes(buildTargetTimes(topicPartition, ListOffsetsRequest.EARLIEST_TIMESTAMP, 10).asJava).build()
     val consumerOffsets = findPartition(sendListOffsetsRequest(request).topics.asScala, topicPartition).oldStyleOffsets.asScala

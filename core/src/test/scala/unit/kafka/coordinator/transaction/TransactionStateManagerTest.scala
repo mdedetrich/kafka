@@ -191,8 +191,8 @@ class TransactionStateManagerTest {
       transactionManager.loadTransactionsForTxnTopicPartition(partitionId, coordinatorEpoch, (_, _, _, _) => ())
     })
     loadingThread.start()
-    TestUtils.waitUntilTrue(() => transactionManager.loadingPartitions.contains(partitionAndLeaderEpoch),
-      "Timed out waiting for loading partition", pause = 10)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => transactionManager.loadingPartitions.contains(partitionAndLeaderEpoch),
+      "Timed out waiting for loading partition", pause = 10))
 
     transactionManager.removeTransactionsForTxnTopicPartition(partitionId)
     assertFalse(transactionManager.loadingPartitions.contains(partitionAndLeaderEpoch))

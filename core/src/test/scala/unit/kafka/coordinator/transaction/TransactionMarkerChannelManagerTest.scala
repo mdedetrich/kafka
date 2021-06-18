@@ -132,7 +132,7 @@ class TransactionMarkerChannelManagerTest {
         time.milliseconds(), time.milliseconds(), false, null, null,
         response)
 
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val requests = channelManager.generateRequests()
         if (requests.nonEmpty) {
           assertEquals(1, requests.size)
@@ -142,7 +142,7 @@ class TransactionMarkerChannelManagerTest {
         } else {
           false
         }
-      }, "Timed out waiting for expected WriteTxnMarkers request")
+      }, "Timed out waiting for expected WriteTxnMarkers request"))
     } finally {
       txnMetadata2.lock.unlock()
       executor.shutdown()

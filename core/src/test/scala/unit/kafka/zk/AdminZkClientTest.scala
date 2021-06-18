@@ -202,7 +202,7 @@ class AdminZkClientTest extends ZooKeeperTestHarness with Logging with RackAware
         else
           assertEquals(expected.split(",").toSeq, actual.asScala)
       }
-      TestUtils.retry(10000) {
+      TestUtils.block(TestUtils.retryAsync(10000) {
         for (part <- 0 until partitions) {
           val tp = new TopicPartition(topic, part)
           val log = server.logManager.getLog(tp)
@@ -213,7 +213,7 @@ class AdminZkClientTest extends ZooKeeperTestHarness with Logging with RackAware
           checkList(log.get.config.FollowerReplicationThrottledReplicas, throttledFollowers)
           assertEquals(quotaManagerIsThrottled, server.quotaManagers.leader.isThrottled(tp))
         }
-      }
+      })
     }
 
     // create a topic with a few config overrides and check that they are applied
@@ -257,12 +257,12 @@ class AdminZkClientTest extends ZooKeeperTestHarness with Logging with RackAware
     servers = createBrokerConfigs(3, zkConnect).map(fromProps).map(createServer(_))
 
     def checkConfig(limit: Long): Unit = {
-      retry(10000) {
+      block(retryAsync(10000) {
         for (server <- servers) {
           assertEquals(limit, server.quotaManagers.leader.upperBound, "Leader Quota Manager was not updated")
           assertEquals(limit, server.quotaManagers.follower.upperBound, "Follower Quota Manager was not updated")
         }
-      }
+      })
     }
 
     val limit: Long = 1000000

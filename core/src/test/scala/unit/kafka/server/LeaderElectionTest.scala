@@ -95,9 +95,9 @@ class LeaderElectionTest extends ZooKeeperTestHarness {
 
     servers.head.startup()
     //make sure second server joins the ISR
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       servers.last.metadataCache.getPartitionInfo(topic, partitionId).exists(_.isr.size == 2)
-    }, "Inconsistent metadata after second broker startup")
+    }, "Inconsistent metadata after second broker startup"))
 
     servers.last.shutdown()
 
@@ -161,7 +161,7 @@ class LeaderElectionTest extends ZooKeeperTestHarness {
         Collections.singletonMap(topic, Uuid.randomUuid()), nodes.toSet.asJava)
 
       controllerChannelManager.sendRequest(brokerId2, requestBuilder, staleControllerEpochCallback)
-      TestUtils.waitUntilTrue(() => staleControllerEpochDetected, "Controller epoch should be stale")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => staleControllerEpochDetected, "Controller epoch should be stale"))
       assertTrue(staleControllerEpochDetected, "Stale controller epoch not detected by the broker")
     } finally {
       controllerChannelManager.shutdown()

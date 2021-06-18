@@ -72,9 +72,9 @@ class AlterReplicaLogDirsRequestTest extends BaseRequestTest {
     (0 until partitionNum).foreach { partition =>
       val tp = new TopicPartition(topic, partition)
       assertEquals(Errors.NONE, findErrorForPartition(alterReplicaLogDirsResponse2, tp))
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         logDir2 == servers.head.logManager.getLog(new TopicPartition(topic, partition)).get.dir.getParent
-      }, "timed out waiting for replica movement")
+      }, "timed out waiting for replica movement"))
     }
   }
 
@@ -105,7 +105,7 @@ class AlterReplicaLogDirsRequestTest extends BaseRequestTest {
 
     // Test AlterReplicaDirRequest after topic creation and log directory failure
     servers.head.logDirFailureChannel.maybeAddOfflineLogDir(offlineDir, "", new java.io.IOException())
-    TestUtils.waitUntilTrue(() => !servers.head.logManager.isLogDirOnline(offlineDir), s"timed out waiting for $offlineDir to be offline", 3000)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !servers.head.logManager.isLogDirOnline(offlineDir), s"timed out waiting for $offlineDir to be offline", 3000))
     val partitionDirs3 = mutable.Map.empty[TopicPartition, String]
     partitionDirs3.put(new TopicPartition(topic, 0), "invalidDir")
     partitionDirs3.put(new TopicPartition(topic, 1), validDir3)

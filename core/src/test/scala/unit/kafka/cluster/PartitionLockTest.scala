@@ -115,7 +115,7 @@ class PartitionLockTest extends Logging {
     val active = new AtomicBoolean(true)
 
     val future = scheduleShrinkIsr(active, mockTimeSleepMs = 10000)
-    TestUtils.waitUntilTrue(() => shrinkIsrSemaphore.hasQueuedThreads, "shrinkIsr not invoked")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => shrinkIsrSemaphore.hasQueuedThreads, "shrinkIsr not invoked"))
     concurrentProduceFetchWithWriteLock()
     active.set(false)
     future.get(15, TimeUnit.SECONDS)

@@ -497,7 +497,7 @@ class TopicCommandIntegrationTest extends KafkaServerTestHarness with Logging wi
       killBroker(0)
 
       // wait until the topic metadata for the test topic is propagated to each alive broker
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         servers
           .filterNot(_.config.brokerId == 0)
           .foldLeft(true) {
@@ -511,7 +511,7 @@ class TopicCommandIntegrationTest extends KafkaServerTestHarness with Logging wi
               }
             }
           }
-      }, s"Partition metadata for $testTopicName is not propagated")
+      }, s"Partition metadata for $testTopicName is not propagated"))
 
       // grab the console output and assert
       val output = TestUtils.grabConsoleOutput(
@@ -596,10 +596,10 @@ class TopicCommandIntegrationTest extends KafkaServerTestHarness with Logging wi
       Optional.of(new NewPartitionReassignment(Collections.singletonList(targetReplica))))).all().get()
 
     // let's wait until the LAIR is propagated
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val reassignments = adminClient.listPartitionReassignments(Collections.singleton(tp)).reassignments().get()
       !reassignments.get(tp).addingReplicas().isEmpty
-    }, "Reassignment didn't add the second node")
+    }, "Reassignment didn't add the second node"))
 
     // describe the topic and test if it's under-replicated
     val simpleDescribeOutput = TestUtils.grabConsoleOutput(

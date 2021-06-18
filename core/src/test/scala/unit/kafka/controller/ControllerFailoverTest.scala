@@ -62,9 +62,9 @@ class ControllerFailoverTest extends KafkaServerTestHarness with Logging {
     // Create topic with one partition
     createTopic(topic, 1, 1)
     val topicPartition = new TopicPartition("topic1", 0)
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       initialController.controllerContext.partitionsInState(OnlinePartition).contains(topicPartition),
-      s"Partition $topicPartition did not transition to online state")
+      s"Partition $topicPartition did not transition to online state"))
 
     // Wait until we have verified that we have resigned
     val latch = new CountDownLatch(1)
@@ -82,18 +82,18 @@ class ControllerFailoverTest extends KafkaServerTestHarness with Logging {
     }
     initialController.eventManager.put(illegalStateEvent)
     // Check that we have shutdown the scheduler (via onControllerResigned)
-    TestUtils.waitUntilTrue(() => !initialController.kafkaScheduler.isStarted, "Scheduler was not shutdown")
-    TestUtils.waitUntilTrue(() => !initialController.isActive, "Controller did not become inactive")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !initialController.kafkaScheduler.isStarted, "Scheduler was not shutdown"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !initialController.isActive, "Controller did not become inactive"))
     latch.countDown()
-    TestUtils.waitUntilTrue(() => Option(exceptionThrown.get()).isDefined, "handleIllegalState did not throw an exception")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => Option(exceptionThrown.get()).isDefined, "handleIllegalState did not throw an exception"))
     assertTrue(exceptionThrown.get.isInstanceOf[IllegalStateException],
       s"handleIllegalState should throw an IllegalStateException, but $exceptionThrown was thrown")
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       servers.exists { server =>
         server.kafkaController.isActive && server.kafkaController.epoch > initialEpoch
       }
-    }, "Failed to find controller")
+    }, "Failed to find controller"))
 
   }
 }

@@ -264,10 +264,10 @@ class PlaintextAdminIntegrationTest extends BaseAdminIntegrationTest {
     // Verify that replica can be moved to the specified log directory after the topic has been created
     client.alterReplicaLogDirs(secondReplicaAssignment.asJava, new AlterReplicaLogDirsOptions).all.get
     servers.foreach { server =>
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val logDir = server.logManager.getLog(tp).get.dir.getParent
         secondReplicaAssignment(new TopicPartitionReplica(topic, 0, server.config.brokerId)) == logDir
-      }, "timed out waiting for replica movement")
+      }, "timed out waiting for replica movement"))
     }
 
     // Verify that replica can be moved to the specified log directory while the producer is sending messages
@@ -851,7 +851,7 @@ class PlaintextAdminIntegrationTest extends BaseAdminIntegrationTest {
 
   private def subscribeAndWaitForAssignment(topic: String, consumer: KafkaConsumer[Array[Byte], Array[Byte]]): Unit = {
     consumer.subscribe(Collections.singletonList(topic))
-    TestUtils.pollUntilTrue(consumer, () => !consumer.assignment.isEmpty, "Expected non-empty assignment")
+    TestUtils.block(TestUtils.pollUntilTrueAsync(consumer, () => !consumer.assignment.isEmpty, "Expected non-empty assignment"))
   }
 
   private def sendRecords(producer: KafkaProducer[Array[Byte], Array[Byte]],
@@ -1215,7 +1215,7 @@ class PlaintextAdminIntegrationTest extends BaseAdminIntegrationTest {
       val consumer = createConsumer(configOverrides = newConsumerConfig)
 
       try {
-        TestUtils.subscribeAndWaitForRecords(testTopicName, consumer)
+        TestUtils.block(TestUtils.subscribeAndWaitForRecordsAsync(testTopicName, consumer))
         consumer.commitSync()
 
         // Test offset deletion while consuming

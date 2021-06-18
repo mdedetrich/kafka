@@ -498,8 +498,8 @@ class PlaintextConsumerTest extends BaseConsumerTest {
     for (i <- 1 to count)
       consumer.commitAsync(Map(tp -> new OffsetAndMetadata(i)).asJava, callback)
 
-    TestUtils.pollUntilTrue(consumer, () => callback.successCount >= count || callback.lastError.isDefined,
-      "Failed to observe commit callback before timeout", waitTimeMs = 10000)
+    TestUtils.block(TestUtils.pollUntilTrueAsync(consumer, () => callback.successCount >= count || callback.lastError.isDefined,
+      "Failed to observe commit callback before timeout", waitTimeMs = 10000))
 
     assertEquals(None, callback.lastError)
     assertEquals(count, callback.successCount)
@@ -1718,9 +1718,9 @@ class PlaintextConsumerTest extends BaseConsumerTest {
 
     // since subscribe call to poller does not actually call consumer subscribe right away, wait
     // until subscribe is called on all consumers
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       consumerPollers.forall { poller => poller.isSubscribeRequestProcessed }
-    }, s"Failed to call subscribe on all consumers in the group for subscription $subscriptions", 1000L)
+    }, s"Failed to call subscribe on all consumers in the group for subscription $subscriptions", 1000L))
 
     validateGroupAssignment(consumerPollers, subscriptions,
       Some(s"Did not get valid assignment for partitions ${subscriptions.asJava} after we changed subscription"))
@@ -1735,18 +1735,18 @@ class PlaintextConsumerTest extends BaseConsumerTest {
   }
 
   private def awaitNonEmptyRecords[K, V](consumer: Consumer[K, V], partition: TopicPartition): ConsumerRecords[K, V] = {
-    TestUtils.pollRecordsUntilTrue(consumer, (polledRecords: ConsumerRecords[K, V]) => {
+    TestUtils.block(TestUtils.pollRecordsUntilTrueAsync(consumer, (polledRecords: ConsumerRecords[K, V]) => {
       if (polledRecords.records(partition).asScala.nonEmpty)
         return polledRecords
       false
-    }, s"Consumer did not consume any messages for partition $partition before timeout.")
+    }, s"Consumer did not consume any messages for partition $partition before timeout."))
     throw new IllegalStateException("Should have timed out before reaching here")
   }
 
   private def awaitAssignment(consumer: Consumer[_, _], expectedAssignment: Set[TopicPartition]): Unit = {
-    TestUtils.pollUntilTrue(consumer, () => consumer.assignment() == expectedAssignment.asJava,
+    TestUtils.block(TestUtils.pollUntilTrueAsync(consumer, () => consumer.assignment() == expectedAssignment.asJava,
       s"Timed out while awaiting expected assignment $expectedAssignment. " +
-        s"The current assignment is ${consumer.assignment()}")
+        s"The current assignment is ${consumer.assignment()}"))
   }
 
   @Test
@@ -1756,9 +1756,9 @@ class PlaintextConsumerTest extends BaseConsumerTest {
     val tp = new TopicPartition(topic, partition)
     createTopic(topic, 1, 1)
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       this.zkClient.topicExists(topic)
-    }, "Failed to create topic")
+    }, "Failed to create topic"))
 
     val producer = createProducer()
     producer.send(new ProducerRecord(topic, partition, "k1".getBytes, "v1".getBytes)).get()
@@ -1821,9 +1821,9 @@ class PlaintextConsumerTest extends BaseConsumerTest {
     val tp = new TopicPartition(topic, partition)
     createTopic(topic, 1, 1)
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       this.zkClient.topicExists(topic)
-    }, "Failed to create topic")
+    }, "Failed to create topic"))
 
     val producer = createProducer()
     producer.send(new ProducerRecord(topic, partition, "k1".getBytes, "v1".getBytes)).get()

@@ -76,7 +76,7 @@ class LeaderEpochIntegrationTest extends ZooKeeperTestHarness with Logging {
 
     //Then they should be stamped with Leader Epoch 0
     var expectedLeaderEpoch = 0
-    waitUntilTrue(() => messagesHaveLeaderEpoch(brokers(0), expectedLeaderEpoch, 0), "Leader epoch should be 0")
+    block(waitUntilTrueAsync(() => messagesHaveLeaderEpoch(brokers(0), expectedLeaderEpoch, 0), "Leader epoch should be 0"))
 
     //Given we then bounce the leader
     brokers(0).shutdown()
@@ -91,7 +91,7 @@ class LeaderEpochIntegrationTest extends ZooKeeperTestHarness with Logging {
     sendFourMessagesToEachTopic()
 
     //The new messages should be stamped with LeaderEpoch = 1
-    waitUntilTrue(() => messagesHaveLeaderEpoch(brokers(0), expectedLeaderEpoch, 4), "Leader epoch should be 1")
+    block(waitUntilTrueAsync(() => messagesHaveLeaderEpoch(brokers(0), expectedLeaderEpoch, 4), "Leader epoch should be 1"))
   }
 
   @Test
@@ -232,9 +232,9 @@ class LeaderEpochIntegrationTest extends ZooKeeperTestHarness with Logging {
   }
 
   private def waitForEpochChangeTo(topic: String, partition: Int, epoch: Int): Unit = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       brokers(0).metadataCache.getPartitionInfo(topic, partition).exists(_.leaderEpoch == epoch)
-    }, "Epoch didn't change")
+    }, "Epoch didn't change"))
   }
 
   private  def messagesHaveLeaderEpoch(broker: KafkaServer, expectedLeaderEpoch: Int, minOffset: Int): Boolean = {

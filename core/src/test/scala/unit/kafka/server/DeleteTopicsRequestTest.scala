@@ -128,7 +128,7 @@ class DeleteTopicsRequestTest extends BaseRequestTest {
           .setTimeoutMs(0)).build(),
       Map(timeoutTopic -> Errors.REQUEST_TIMED_OUT))
     // The topic should still get deleted eventually
-    TestUtils.waitUntilTrue(() => !servers.head.metadataCache.contains(timeoutTopic), s"Topic $timeoutTopic is never deleted")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !servers.head.metadataCache.contains(timeoutTopic), s"Topic $timeoutTopic is never deleted"))
     validateTopicIsDeleted(timeoutTopic)
   }
 
@@ -181,8 +181,8 @@ class DeleteTopicsRequestTest extends BaseRequestTest {
   private def validateTopicIsDeleted(topic: String): Unit = {
     val metadata = connectAndReceive[MetadataResponse](new MetadataRequest.Builder(
       List(topic).asJava, true).build).topicMetadata.asScala
-    TestUtils.waitUntilTrue (() => !metadata.exists(p => p.topic.equals(topic) && p.error == Errors.NONE),
-      s"The topic $topic should not exist")
+    TestUtils.block(TestUtils.waitUntilTrueAsync (() => !metadata.exists(p => p.topic.equals(topic) && p.error == Errors.NONE),
+      s"The topic $topic should not exist"))
   }
 
   private def sendDeleteTopicsRequest(request: DeleteTopicsRequest, socketServer: SocketServer = controllerSocketServer): DeleteTopicsResponse = {

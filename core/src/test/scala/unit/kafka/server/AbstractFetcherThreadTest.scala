@@ -88,8 +88,8 @@ class AbstractFetcherThreadTest {
     val fetcherMetrics = Set(FetcherMetrics.BytesPerSec, FetcherMetrics.RequestsPerSec, FetcherMetrics.ConsumerLag)
 
     // wait until all fetcher metrics are present
-    TestUtils.waitUntilTrue(() => allMetricsNames == brokerTopicStatsMetrics ++ fetcherMetrics,
-      "Failed waiting for all fetcher metrics to be registered")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => allMetricsNames == brokerTopicStatsMetrics ++ fetcherMetrics,
+      "Failed waiting for all fetcher metrics to be registered"))
 
     fetcher.shutdown()
 
@@ -288,10 +288,10 @@ class AbstractFetcherThreadTest {
     val leaderState = MockFetcherThread.PartitionState(leaderLog, leaderEpoch = 5, highWatermark = 2L)
     fetcher.setLeaderState(partition, leaderState)
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       fetcher.doWork()
       fetcher.replicaPartitionState(partition).log == fetcher.leaderPartitionState(partition).log
-    }, "Failed to reconcile leader and follower logs")
+    }, "Failed to reconcile leader and follower logs"))
 
     assertEquals(leaderState.logStartOffset, replicaState.logStartOffset)
     assertEquals(leaderState.logEndOffset, replicaState.logEndOffset)
@@ -536,10 +536,10 @@ class AbstractFetcherThreadTest {
     assertEquals(2, replicaState.logStartOffset)
     assertEquals(List(), replicaState.log.toList)
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       fetcher.doWork()
       fetcher.replicaPartitionState(partition).log == fetcher.leaderPartitionState(partition).log
-    }, "Failed to reconcile leader and follower logs")
+    }, "Failed to reconcile leader and follower logs"))
 
     assertEquals(leaderState.logStartOffset, replicaState.logStartOffset)
     assertEquals(leaderState.logEndOffset, replicaState.logEndOffset)
@@ -576,10 +576,10 @@ class AbstractFetcherThreadTest {
     fetcher.doWork()
     assertEquals(Option(Fetching), fetcher.fetchState(partition).map(_.state))
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       fetcher.doWork()
       fetcher.replicaPartitionState(partition).log == fetcher.leaderPartitionState(partition).log
-    }, "Failed to reconcile leader and follower logs")
+    }, "Failed to reconcile leader and follower logs"))
 
     assertEquals(leaderState.logStartOffset, replicaState.logStartOffset)
     assertEquals(leaderState.logEndOffset, replicaState.logEndOffset)
@@ -836,10 +836,10 @@ class AbstractFetcherThreadTest {
     fetcher.doWork()
     fetcher.verifyLastFetchedEpoch(partition, Some(2))
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       fetcher.doWork()
       fetcher.replicaPartitionState(partition).log == fetcher.leaderPartitionState(partition).log
-    }, "Failed to reconcile leader and follower logs")
+    }, "Failed to reconcile leader and follower logs"))
     fetcher.verifyLastFetchedEpoch(partition, Some(5))
   }
 

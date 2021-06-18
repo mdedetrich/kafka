@@ -134,7 +134,7 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
     conns ++= (5 until 10).map(_ => connect("INTERNAL"))
     conns.foreach(verifyConnection)
     conns.foreach(_.close())
-    TestUtils.waitUntilTrue(() => initialConnectionCount == connectionCount, "Connections not closed")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => initialConnectionCount == connectionCount, "Connections not closed"))
 
     // Increase MaxConnections for PLAINTEXT listener to 7 at the broker level
     val maxConnectionsPlaintext = 7
@@ -152,7 +152,7 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
     plaintextConnections.head.close()
     future.get(30, TimeUnit.SECONDS)
     plaintextConnections.foreach(_.close())
-    TestUtils.waitUntilTrue(() => initialConnectionCount == connectionCount, "Connections not closed")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => initialConnectionCount == connectionCount, "Connections not closed"))
 
     // Verify that connections on inter-broker listener succeed even if broker max connections has been
     // reached by closing connections on another listener
@@ -161,14 +161,14 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
     plaintextConns.foreach(verifyConnection)
     internalConns.foreach(verifyConnection)
     plaintextConns ++= (0 until 2).map(_ => connect("PLAINTEXT"))
-    TestUtils.waitUntilTrue(() => connectionCount <= 10, "Internal connections not closed")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => connectionCount <= 10, "Internal connections not closed"))
     plaintextConns.foreach(verifyConnection)
     assertThrows(classOf[IOException], () => internalConns.foreach { socket =>
       sendAndReceive[ProduceResponse](produceRequest, socket)
     })
     plaintextConns.foreach(_.close())
     internalConns.foreach(_.close())
-    TestUtils.waitUntilTrue(() => initialConnectionCount == connectionCount, "Connections not closed")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => initialConnectionCount == connectionCount, "Connections not closed"))
   }
 
   @Test
@@ -257,8 +257,8 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
     TestUtils.incrementalAlterConfigs(servers, adminClient, newProps, perBrokerConfig).all.get()
     waitForConfigOnServer(aPropToVerify._1, aPropToVerify._2)
     adminClient.close()
-    TestUtils.waitUntilTrue(() => initialConnectionCount == connectionCount,
-      s"Admin client connection not closed (initial = $initialConnectionCount, current = $connectionCount)")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => initialConnectionCount == connectionCount,
+      s"Admin client connection not closed (initial = $initialConnectionCount, current = $connectionCount)"))
   }
 
   private def updateIpConnectionRate(ip: Option[String], updatedRate: Int): Unit = {
@@ -269,25 +269,25 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
       val request = Map(entity -> Map(QuotaConfigs.IP_CONNECTION_RATE_OVERRIDE_CONFIG -> Some(updatedRate.toDouble)))
       TestUtils.alterClientQuotas(adminClient, request).all.get()
       // use a random throwaway address if ip isn't specified to get the default value
-      TestUtils.waitUntilTrue(() => servers.head.socketServer.connectionQuotas.
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.head.socketServer.connectionQuotas.
         connectionRateForIp(InetAddress.getByName(ip.getOrElse(unknownHost))) == updatedRate,
         s"Timed out waiting for connection rate update to propagate"
-      )
+      ))
     } finally {
       adminClient.close()
     }
-    TestUtils.waitUntilTrue(() => initialConnectionCount == connectionCount,
-      s"Admin client connection not closed (initial = $initialConnectionCount, current = $connectionCount)")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => initialConnectionCount == connectionCount,
+      s"Admin client connection not closed (initial = $initialConnectionCount, current = $connectionCount)"))
   }
 
   private def waitForListener(listenerName: String): Unit = {
-    TestUtils.retry(maxWaitMs = 10000) {
+    TestUtils.block(TestUtils.retryAsync(maxWaitMs = 10000) {
       try {
         assertTrue(servers.head.socketServer.boundPort(ListenerName.normalised(listenerName)) > 0)
       } catch {
         case e: KafkaException => throw new AssertionError(e)
       }
-    }
+    })
   }
 
   private def createAdminClient(): Admin = {
@@ -300,9 +300,9 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
   }
 
   private def waitForConfigOnServer(propName: String, propValue: String, maxWaitMs: Long = 10000): Unit = {
-    TestUtils.retry(maxWaitMs) {
+    TestUtils.block(TestUtils.retryAsync(maxWaitMs) {
       assertEquals(propValue, servers.head.config.originals.get(propName))
-    }
+    })
   }
 
   private def produceRequest: ProduceRequest =
@@ -354,7 +354,7 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
     // produce should succeed on a new connection
     createAndVerifyConnection()
 
-    TestUtils.waitUntilTrue(() => connectionCount == (maxConnections - 1), "produce request connection is not closed")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => connectionCount == (maxConnections - 1), "produce request connection is not closed"))
     conns = conns :+ connect("PLAINTEXT")
 
     // now try one more (should fail)
@@ -362,11 +362,11 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
 
     //close one connection
     conns.head.close()
-    TestUtils.waitUntilTrue(() => connectionCount == (maxConnections - 1), "connection is not closed")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => connectionCount == (maxConnections - 1), "connection is not closed"))
     createAndVerifyConnection()
 
     conns.foreach(_.close())
-    TestUtils.waitUntilTrue(() => initialConnectionCount == connectionCount, "Connections not closed")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => initialConnectionCount == connectionCount, "Connections not closed"))
   }
 
   private def connectAndVerify(listener: String, ignoreIOExceptions: Boolean): Unit = {
@@ -382,8 +382,8 @@ class DynamicConnectionQuotaTest extends BaseRequestTest {
   }
 
   private def waitForConnectionCount(expectedConnectionCount: Int): Unit = {
-    TestUtils.waitUntilTrue(() => expectedConnectionCount == connectionCount,
-      s"Connections not closed (expected = $expectedConnectionCount current = $connectionCount)")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => expectedConnectionCount == connectionCount,
+      s"Connections not closed (expected = $expectedConnectionCount current = $connectionCount)"))
   }
 
   /**

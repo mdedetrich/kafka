@@ -159,10 +159,10 @@ class ReassignPartitionsIntegrationTest extends ZooKeeperTestHarness {
     waitForVerifyAssignment(cluster.adminClient, assignment, false,
       VerifyAssignmentResult(finalAssignment))
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       cluster.servers(3).replicaManager.onlinePartition(part).
         flatMap(_.leaderLogIfLocal).isDefined
-    }, "broker 3 should be the new leader", pause = 10L)
+    }, "broker 3 should be the new leader", pause = 10L))
     assertEquals(123L, cluster.servers(3).replicaManager.localLogOrException(part).highWatermark,
       s"Expected broker 3 to have the correct high water mark for the partition.")
   }
@@ -235,7 +235,7 @@ class ReassignPartitionsIntegrationTest extends ZooKeeperTestHarness {
         PartitionReassignmentState(Seq(3, 2, 1), Seq(3, 2, 1), true))
 
     // Wait for the assignment to complete
-    TestUtils.waitUntilTrue(
+    TestUtils.block(TestUtils.waitUntilTrueAsync(
       () => {
         // Check the reassignment status.
         val result = runVerifyAssignment(cluster.adminClient, assignment, true)
@@ -249,7 +249,7 @@ class ReassignPartitionsIntegrationTest extends ZooKeeperTestHarness {
           waitForInterBrokerThrottle(Set(0, 1, 2, 3), interBrokerThrottle)
           false
         }
-      }, "Expected reassignment to complete.")
+      }, "Expected reassignment to complete."))
     waitForVerifyAssignment(cluster.adminClient, assignment, true,
       VerifyAssignmentResult(finalAssignment))
     // The throttles should still have been preserved, since we ran with --preserve-throttles
@@ -356,11 +356,11 @@ class ReassignPartitionsIntegrationTest extends ZooKeeperTestHarness {
 
   private def waitForBrokerLevelThrottles(targetThrottles: Map[Int, Map[String, Long]]): Unit = {
     var curThrottles: Map[Int, Map[String, Long]] = Map.empty
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       curThrottles = describeBrokerLevelThrottles(targetThrottles.keySet.toSeq)
       targetThrottles.equals(curThrottles)
     }, s"timed out waiting for broker throttle to become ${targetThrottles}.  " +
-      s"Latest throttles were ${curThrottles}", pause = 25)
+      s"Latest throttles were ${curThrottles}", pause = 25))
   }
 
   /**
@@ -515,12 +515,12 @@ class ReassignPartitionsIntegrationTest extends ZooKeeperTestHarness {
                                       preserveThrottles: Boolean,
                                       expectedResult: VerifyAssignmentResult): Unit = {
     var latestResult: VerifyAssignmentResult = null
-    TestUtils.waitUntilTrue(
+    TestUtils.block(TestUtils.waitUntilTrueAsync(
       () => {
         latestResult = runVerifyAssignment(adminClient, jsonString, preserveThrottles)
         expectedResult.equals(latestResult)
       }, s"Timed out waiting for verifyAssignment result ${expectedResult}.  " +
-        s"The latest result was ${latestResult}", pause = 10L)
+        s"The latest result was ${latestResult}", pause = 10L))
   }
 
   private def runExecuteAssignment(adminClient: Admin,

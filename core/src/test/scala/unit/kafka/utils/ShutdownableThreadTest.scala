@@ -47,7 +47,7 @@ class ShutdownableThreadTest {
     assertTrue(latch.await(10, TimeUnit.SECONDS), "doWork was not invoked")
 
     thread.shutdown()
-    TestUtils.waitUntilTrue(() => statusCodeOption.isDefined, "Status code was not set by exit procedure")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => statusCodeOption.isDefined, "Status code was not set by exit procedure"))
     assertEquals(1, statusCodeOption.get)
   }
 

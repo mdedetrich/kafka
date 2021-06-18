@@ -77,9 +77,9 @@ class ResetConsumerGroupOffsetTest extends ConsumerGroupCommandTest {
     val args = buildArgsForGroup(group, "--all-topics", "--to-current", "--execute")
     val consumerGroupCommand = getConsumerGroupService(args)
     // Make sure we got a coordinator
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       consumerGroupCommand.collectGroupState(group).coordinator.host() == "localhost"
-    }, "Can't find a coordinator")
+    }, "Can't find a coordinator"))
     val resetOffsets = consumerGroupCommand.resetOffsets()(group)
     assertEquals(Map.empty, resetOffsets)
     assertEquals(resetOffsets, committedOffsets(group = group))
@@ -452,14 +452,14 @@ class ResetConsumerGroupOffsetTest extends ConsumerGroupCommandTest {
         new TopicPartition(partitionInfo.topic, partitionInfo.partition)
       }.toSet
 
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         val committed = consumer.committed(partitions.asJava).values.asScala
         val total = committed.foldLeft(0L) { case (currentSum, offsetAndMetadata) =>
           currentSum + Option(offsetAndMetadata).map(_.offset).getOrElse(0L)
         }
         total == count
       }, "Expected that consumer group has consumed all messages from topic/partition. " +
-        s"Expected offset: $count. Actual offset: ${committedOffsets(topic, group).values.sum}")
+        s"Expected offset: $count. Actual offset: ${committedOffsets(topic, group).values.sum}"))
 
     } finally {
       consumer.close()
@@ -468,10 +468,10 @@ class ResetConsumerGroupOffsetTest extends ConsumerGroupCommandTest {
   }
 
   private def awaitConsumerGroupInactive(consumerGroupService: ConsumerGroupService, group: String): Unit = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val state = consumerGroupService.collectGroupState(group).state
       state == "Empty" || state == "Dead"
-    }, s"Expected that consumer group is inactive. Actual state: ${consumerGroupService.collectGroupState(group).state}")
+    }, s"Expected that consumer group is inactive. Actual state: ${consumerGroupService.collectGroupState(group).state}"))
   }
 
   private def resetAndAssertOffsets(args: Array[String],

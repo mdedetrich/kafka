@@ -71,12 +71,12 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // start topic deletion
     adminZkClient.deleteTopic(topic)
     // check if all replicas but the one that is shut down has deleted the log
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       servers.filter(s => s.config.brokerId != follower.config.brokerId)
-        .forall(_.getLogManager.getLog(topicPartition).isEmpty), "Replicas 0,1 have not deleted log.")
+        .forall(_.getLogManager.getLog(topicPartition).isEmpty), "Replicas 0,1 have not deleted log."))
     // ensure topic deletion is halted
-    TestUtils.waitUntilTrue(() => zkClient.isTopicMarkedForDeletion(topic),
-      "Admin path /admin/delete_topics/test path deleted even when a follower replica is down")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.isTopicMarkedForDeletion(topic),
+      "Admin path /admin/delete_topics/test path deleted even when a follower replica is down"))
     // restart follower replica
     follower.startup()
     TestUtils.verifyTopicDeletion(zkClient, topic, 1, servers)
@@ -99,8 +99,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     controller.shutdown()
 
     // ensure topic deletion is halted
-    TestUtils.waitUntilTrue(() => zkClient.isTopicMarkedForDeletion(topic),
-      "Admin path /admin/delete_topics/test path deleted even when a replica is down")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.isTopicMarkedForDeletion(topic),
+      "Admin path /admin/delete_topics/test path deleted even when a replica is down"))
 
     controller.startup()
     follower.startup()
@@ -121,8 +121,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // create the topic
     TestUtils.createTopic(zkClient, topic, expectedReplicaAssignment, servers)
     // wait until replica log is created on every broker
-    TestUtils.waitUntilTrue(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
-      "Replicas for topic test not created.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
+      "Replicas for topic test not created."))
     val leaderIdOpt = zkClient.getLeaderForPartition(new TopicPartition(topic, 0))
     assertTrue(leaderIdOpt.isDefined, "Leader should exist for partition [test,0]")
     val follower = servers.filter(s => s.config.brokerId != leaderIdOpt.get).last
@@ -145,7 +145,7 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
   }
 
   private def waitUntilTopicGone(adminClient: Admin, topicName: String): Unit = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       try {
         adminClient.describeTopics(util.Collections.singletonList(topicName)).all().get()
         false
@@ -153,7 +153,7 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
         case e: ExecutionException =>
           classOf[UnknownTopicOrPartitionException].equals(e.getCause.getClass)
       }
-    }, s"Topic ${topicName} should be deleted.")
+    }, s"Topic ${topicName} should be deleted."))
   }
 
   private def verifyReassignmentFailsForMissing(adminClient: Admin,
@@ -171,14 +171,14 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
   }
 
   private def ensureControllerExists() = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       try {
         getController()
         true
       } catch {
         case _: Throwable  => false
       }
-    }, "Controller should eventually exist")
+    }, "Controller should eventually exist"))
   }
 
   private def getAllReplicasFromAssignment(topic : String, assignment : Map[Int, Seq[Int]]) : Set[PartitionAndReplica] = {
@@ -200,8 +200,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // create the topic
     TestUtils.createTopic(zkClient, topic, expectedReplicaAssignment, servers)
     // wait until replica log is created on every broker
-    TestUtils.waitUntilTrue(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
-      "Replicas for topic test not created.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
+      "Replicas for topic test not created."))
     // shutdown a broker to make sure the following topic deletion will be suspended
     val leaderIdOpt = zkClient.getLeaderForPartition(topicPartition)
     assertTrue(leaderIdOpt.isDefined, "Leader should exist for partition [test,0]")
@@ -214,11 +214,11 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     ensureControllerExists()
     val (controller, controllerId) = getController()
     val allReplicasForTopic = getAllReplicasFromAssignment(topic, expectedReplicaAssignment)
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val replicasInDeletionSuccessful = controller.kafkaController.controllerContext.replicasInState(topic, ReplicaDeletionSuccessful)
       val offlineReplicas = controller.kafkaController.controllerContext.replicasInState(topic, OfflineReplica)
       allReplicasForTopic == (replicasInDeletionSuccessful union offlineReplicas)
-    }, s"Not all replicas for topic $topic are in states of either ReplicaDeletionSuccessful or OfflineReplica")
+    }, s"Not all replicas for topic $topic are in states of either ReplicaDeletionSuccessful or OfflineReplica"))
 
     // increase the partition count for topic
     val props = new Properties()
@@ -236,10 +236,10 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
 
     ensureControllerExists()
     // wait until a new controller to show up
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val (newController, newControllerId) = getController()
       newControllerId != previousControllerId
-    }, "The new controller should not have the failed controller id")
+    }, "The new controller should not have the failed controller id"))
 
     // bring back the failed brokers
     follower.startup()
@@ -261,8 +261,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     val brokers = adminZkClient.getBrokerMetadatas()
     follower.shutdown()
     // wait until the broker has been removed from ZK to reduce non-determinism
-    TestUtils.waitUntilTrue(() => zkClient.getBroker(follower.config.brokerId).isEmpty,
-      s"Follower ${follower.config.brokerId} was not removed from ZK")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => zkClient.getBroker(follower.config.brokerId).isEmpty,
+      s"Follower ${follower.config.brokerId} was not removed from ZK"))
     // add partitions to topic
     adminZkClient.addPartitions(topic, expectedReplicaFullAssignment, brokers, 2,
       Some(Map(1 -> Seq(0, 1, 2), 2 -> Seq(0, 1, 2))))
@@ -272,9 +272,9 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // test if topic deletion is resumed
     TestUtils.verifyTopicDeletion(zkClient, topic, 1, servers)
     // verify that new partition doesn't exist on any broker either
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       servers.forall(_.getLogManager.getLog(newPartition).isEmpty),
-      "Replica logs not for new partition [test,1] not deleted after delete topic is complete.")
+      "Replica logs not for new partition [test,1] not deleted after delete topic is complete."))
   }
 
   @Test
@@ -306,8 +306,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // re-create topic on same replicas
     TestUtils.createTopic(zkClient, topic, expectedReplicaAssignment, servers)
     // check if all replica logs are created
-    TestUtils.waitUntilTrue(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
-      "Replicas for topic test not created.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
+      "Replicas for topic test not created."))
   }
 
   @Test
@@ -320,8 +320,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // verify delete topic path for test2 is removed from ZooKeeper
     TestUtils.verifyTopicDeletion(zkClient, "test2", 1, servers)
     // verify that topic test is untouched
-    TestUtils.waitUntilTrue(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
-      "Replicas for topic test not created")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
+      "Replicas for topic test not created"))
     // test the topic path exists
     assertTrue(zkClient.topicExists(topic), "Topic test mistakenly deleted")
     // topic test should have a leader
@@ -384,8 +384,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     // create the topic
     TestUtils.createTopic(zkClient, topic, expectedReplicaAssignment, servers)
     // wait until replica log is created on every broker
-    TestUtils.waitUntilTrue(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
-      "Replicas for topic test not created")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.forall(_.getLogManager.getLog(topicPartition).isDefined),
+      "Replicas for topic test not created"))
     servers
   }
 
@@ -406,8 +406,8 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
     servers = createTestTopicAndCluster(topic, deleteTopicEnabled = false)
     // mark the topic for deletion
     adminZkClient.deleteTopic("test")
-    TestUtils.waitUntilTrue(() => !zkClient.isTopicMarkedForDeletion(topic),
-      "Admin path /admin/delete_topics/%s path not deleted even if deleteTopic is disabled".format(topic))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !zkClient.isTopicMarkedForDeletion(topic),
+      "Admin path /admin/delete_topics/%s path not deleted even if deleteTopic is disabled".format(topic)))
     // verify that topic test is untouched
     assertTrue(servers.forall(_.getLogManager.getLog(topicPartition).isDefined))
     // test the topic path exists
@@ -444,7 +444,7 @@ class DeleteTopicTest extends ZooKeeperTestHarness {
       * start up all brokers and verify that topic deletion eventually finishes.
       */
     servers.foreach(_.startup())
-    TestUtils.waitUntilTrue(() => servers.exists(_.kafkaController.isActive), "No controller is elected")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.exists(_.kafkaController.isActive), "No controller is elected"))
     TestUtils.verifyTopicDeletion(zkClient, topic, 2, servers)
   }
 }

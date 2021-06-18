@@ -1780,9 +1780,9 @@ class LogTest {
     assertEquals(0, lastRead.records.asScala.size, "Should be no more messages")
 
     // check that rolling the log forced a flushed, the flush is async so retry in case of failure
-    TestUtils.retry(1000L){
+    TestUtils.block(TestUtils.retryAsync(1000L){
       assertTrue(log.recoveryPoint >= log.activeSegment.baseOffset, "Log role should have forced flush")
-    }
+    })
   }
 
   /**

@@ -88,8 +88,8 @@ class ControllerEventManagerTest {
     )
     val updateMetadataResponseEvent = controller.UpdateMetadataResponseReceived(updateMetadataResponse, brokerId = 1)
     controllerEventManager.put(updateMetadataResponseEvent)
-    TestUtils.waitUntilTrue(() => processedEvents.size == 1,
-      "Failed to process expected event before timing out")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => processedEvents.size == 1,
+      "Failed to process expected event before timing out"))
     assertEquals(updateMetadataResponseEvent, processedEvents.head)
   }
 
@@ -123,8 +123,8 @@ class ControllerEventManagerTest {
     controllerEventManager.put(TopicChange)
     latch.countDown()
 
-    TestUtils.waitUntilTrue(() => processedEvents.get() == 2,
-      "Timed out waiting for processing of all events")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => processedEvents.get() == 2,
+      "Timed out waiting for processing of all events"))
 
     val queueTimeHistogram = KafkaYammerMetrics.defaultRegistry.allMetrics.asScala.filter { case (k, _) =>
       k.getMBeanName == metricName
@@ -156,15 +156,15 @@ class ControllerEventManagerTest {
     controllerEventManager.put(TopicChange)
     controllerEventManager.put(TopicChange)
 
-    TestUtils.waitUntilTrue(() => processedEvents.get() == 2,
-      "Timed out waiting for processing of all events")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => processedEvents.get() == 2,
+      "Timed out waiting for processing of all events"))
 
     val queueTimeHistogram = KafkaYammerMetrics.defaultRegistry.allMetrics.asScala.filter { case (k, _) =>
       k.getMBeanName == metricName
     }.values.headOption.getOrElse(fail(s"Unable to find metric $metricName")).asInstanceOf[Histogram]
 
-    TestUtils.waitUntilTrue(() => queueTimeHistogram.count == 0,
-      "Timed out on resetting queueTimeHistogram")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => queueTimeHistogram.count == 0,
+      "Timed out on resetting queueTimeHistogram"))
     assertEquals(0, queueTimeHistogram.min, 0.1)
     assertEquals(0, queueTimeHistogram.max, 0.1)
   }
@@ -204,12 +204,12 @@ class ControllerEventManagerTest {
     val initialTimerCount = timer(metricName).count
 
     controllerEventManager.put(event)
-    TestUtils.waitUntilTrue(() => controllerEventManager.state == event.state,
-      s"Controller state is not ${event.state}")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => controllerEventManager.state == event.state,
+      s"Controller state is not ${event.state}"))
     latch.countDown()
 
-    TestUtils.waitUntilTrue(() => controllerEventManager.state == ControllerState.Idle,
-      "Controller state has not changed back to Idle")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => controllerEventManager.state == ControllerState.Idle,
+      "Controller state has not changed back to Idle"))
     assertEquals(1, eventProcessedListenerCount.get)
 
     assertEquals(initialTimerCount + 1, timer(metricName).count, "Timer has not been updated")

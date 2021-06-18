@@ -308,10 +308,10 @@ class AclAuthorizerTest extends ZooKeeperTestHarness with BaseAuthorizerTest {
     acls = changeAclAndVerify(acls, Set(acl5), Set.empty)
 
     //test get by principal name.
-    TestUtils.waitUntilTrue(() => Set(acl1, acl2).map(acl => new AclBinding(resource, acl)) == getAcls(aclAuthorizer, user1),
-      "changes not propagated in timeout period")
-    TestUtils.waitUntilTrue(() => Set(acl3, acl4, acl5).map(acl => new AclBinding(resource, acl)) == getAcls(aclAuthorizer, user2),
-      "changes not propagated in timeout period")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => Set(acl1, acl2).map(acl => new AclBinding(resource, acl)) == getAcls(aclAuthorizer, user1),
+      "changes not propagated in timeout period"))
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => Set(acl3, acl4, acl5).map(acl => new AclBinding(resource, acl)) == getAcls(aclAuthorizer, user2),
+      "changes not propagated in timeout period"))
 
     val resourceToAcls = Map[ResourcePattern, Set[AccessControlEntry]](
       new ResourcePattern(TOPIC, WILDCARD_RESOURCE, LITERAL) -> Set(new AccessControlEntry(user2.toString, WildcardHost, READ, ALLOW)),
@@ -324,7 +324,7 @@ class AclAuthorizerTest extends ZooKeeperTestHarness with BaseAuthorizerTest {
     val expectedAcls = (resourceToAcls + (resource -> acls)).flatMap {
       case (res, resAcls) => resAcls.map { acl => new AclBinding(res, acl) }
     }.toSet
-    TestUtils.waitUntilTrue(() => expectedAcls == getAcls(aclAuthorizer), "changes not propagated in timeout period.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => expectedAcls == getAcls(aclAuthorizer), "changes not propagated in timeout period."))
 
     //test remove acl from existing acls.
     acls = changeAclAndVerify(acls, Set.empty, Set(acl1, acl5))
@@ -947,10 +947,10 @@ class AclAuthorizerTest extends ZooKeeperTestHarness with BaseAuthorizerTest {
       }
       updateSemaphore.release()
       if (deletePatternType == PatternType.MATCH) {
-        TestUtils.waitUntilTrue(() => listAcls(deleteAuthorizer).nonEmpty, "ACL not propagated")
+        TestUtils.block(TestUtils.waitUntilTrueAsync(() => listAcls(deleteAuthorizer).nonEmpty, "ACL not propagated"))
         assertEquals(List(acl), deleteAcl(deleteAuthorizer, resource, deletePatternType))
       }
-      TestUtils.waitUntilTrue(() => listAcls(deleteAuthorizer).isEmpty, "ACL delete not propagated")
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => listAcls(deleteAuthorizer).isEmpty, "ACL delete not propagated"))
     }
 
     val deleteAuthorizer = new AclAuthorizer {

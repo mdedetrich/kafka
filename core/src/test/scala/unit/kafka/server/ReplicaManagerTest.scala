@@ -263,10 +263,10 @@ class ReplicaManagerTest {
       assertEquals(1, replicaManager.replicaAlterLogDirsManager.fetcherThreadMap.size)
       (1 to loopEpochChange).foreach(epoch => replicaManager.becomeLeaderOrFollower(0, leaderAndIsrRequest(epoch), (_, _) => ()))
       // wait for the ReplicaAlterLogDirsThread to complete
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         replicaManager.replicaAlterLogDirsManager.shutdownIdleFetcherThreads()
         replicaManager.replicaAlterLogDirsManager.fetcherThreadMap.isEmpty
-      }, s"ReplicaAlterLogDirsThread should be gone")
+      }, s"ReplicaAlterLogDirsThread should be gone"))
 
       // the fenced error should be recoverable
       assertEquals(0, replicaManager.replicaAlterLogDirsManager.failedPartitions.size)

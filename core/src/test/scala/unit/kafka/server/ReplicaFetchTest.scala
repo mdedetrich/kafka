@@ -76,6 +76,6 @@ class ReplicaFetchTest extends ZooKeeperTestHarness  {
       }
       result
     }
-    waitUntilTrue(logsMatch _, "Broker logs should be identical")
+    block(waitUntilTrueAsync(logsMatch _, "Broker logs should be identical"))
   }
 }

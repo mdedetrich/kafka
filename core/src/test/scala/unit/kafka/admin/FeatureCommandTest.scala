@@ -20,7 +20,7 @@ package kafka.admin
 import kafka.api.KAFKA_2_7_IV0
 import kafka.server.{BaseRequestTest, KafkaConfig, KafkaServer}
 import kafka.utils.TestUtils
-import kafka.utils.TestUtils.waitUntilTrue
+import kafka.utils.TestUtils.{block, waitUntilTrueAsync}
 import org.apache.kafka.common.feature.{Features, SupportedVersionRange}
 import org.apache.kafka.common.utils.Utils
 
@@ -49,7 +49,7 @@ class FeatureCommandTest extends BaseRequestTest {
 
     // Wait until updates to all BrokerZNode supported features propagate to the controller.
     val brokerIds = targetServers.map(s => s.config.brokerId)
-    waitUntilTrue(
+    block(waitUntilTrueAsync(
       () => servers.exists(s => {
         if (s.kafkaController.isActive) {
           s.kafkaController.controllerContext.liveOrShuttingDownBrokers
@@ -61,7 +61,7 @@ class FeatureCommandTest extends BaseRequestTest {
           false
         }
       }),
-      "Controller did not get broker updates")
+      "Controller did not get broker updates"))
   }
 
   private def updateSupportedFeaturesInAllBrokers(features: Features[SupportedVersionRange]): Unit = {

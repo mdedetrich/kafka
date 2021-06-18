@@ -129,9 +129,9 @@ class FinalizedFeatureChangeListenerTest extends ZooKeeperTestHarness {
     val (mayBeFeatureZNodeDeletedBytes, deletedVersion) = zkClient.getDataAndVersion(FeatureZNode.path)
     assertEquals(deletedVersion, ZkVersion.UnknownVersion)
     assertTrue(mayBeFeatureZNodeDeletedBytes.isEmpty)
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       cache.isEmpty
-    }, "Timed out waiting for FinalizedFeatureCache to become empty")
+    }, "Timed out waiting for FinalizedFeatureCache to become empty"))
     assertTrue(listener.isListenerInitiated)
   }
 
@@ -250,7 +250,7 @@ class FinalizedFeatureChangeListenerTest extends ZooKeeperTestHarness {
     assertFalse(mayBeFeatureZNodeIncompatibleBytes.isEmpty)
 
     try {
-      TestUtils.waitUntilTrue(() => {
+      TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
         // Make sure the custom exit procedure (defined above) was called.
         exitLatch.getCount == 0 &&
         // Make sure the listener is no longer initiated (because, it is dead).
@@ -261,7 +261,7 @@ class FinalizedFeatureChangeListenerTest extends ZooKeeperTestHarness {
         // Make sure the cache contents are as expected, and, the incompatible features were not
         // applied.
         cache.get.get.equals(initialFinalizedFeatures)
-      }, "Timed out waiting for listener death and FinalizedFeatureCache to be updated")
+      }, "Timed out waiting for listener death and FinalizedFeatureCache to be updated"))
     } finally {
       Exit.resetExitProcedure()
     }

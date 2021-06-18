@@ -133,9 +133,9 @@ class ConsumerBounceTest extends AbstractConsumerTest with Logging {
     consumer.seek(tp, 0)
 
     // wait until all the followers have synced the last HW with leader
-    TestUtils.waitUntilTrue(() => servers.forall(server =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => servers.forall(server =>
       server.replicaManager.localLog(tp).get.highWatermark == numRecords
-    ), "Failed to update high watermark for followers after timeout")
+    ), "Failed to update high watermark for followers after timeout"))
 
     val scheduler = new BounceBrokerScheduler(numIters)
     scheduler.start()
@@ -263,11 +263,11 @@ class ConsumerBounceTest extends AbstractConsumerTest with Logging {
       .setKeyType(FindCoordinatorRequest.CoordinatorType.GROUP.id)
       .setKey(group)).build()
     var nodeId = -1
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val response = connectAndReceive[FindCoordinatorResponse](request)
       nodeId = response.node.id
       response.error == Errors.NONE
-    }, s"Failed to find coordinator for group $group")
+    }, s"Failed to find coordinator for group $group"))
     nodeId
   }
 
@@ -328,8 +328,8 @@ class ConsumerBounceTest extends AbstractConsumerTest with Logging {
     }
 
     // we are waiting for the group to rebalance and one member to get kicked
-    TestUtils.waitUntilTrue(() => raisedExceptions.nonEmpty,
-      msg = "The remaining consumers in the group could not fetch the expected records", 10000L)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => raisedExceptions.nonEmpty,
+      msg = "The remaining consumers in the group could not fetch the expected records", 10000L))
 
     assertEquals(1, raisedExceptions.size)
     assertTrue(raisedExceptions.head.isInstanceOf[GroupMaxSizeReachedException])
@@ -354,16 +354,16 @@ class ConsumerBounceTest extends AbstractConsumerTest with Logging {
     val (_, rejectedConsumerPollers) = addConsumersToGroup(1,
       mutable.Buffer[KafkaConsumer[Array[Byte], Array[Byte]]](), mutable.Buffer[ConsumerAssignmentPoller](), List[String](topic), partitions, group)
     val rejectedConsumer = rejectedConsumerPollers.head
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       rejectedConsumer.thrownException.isDefined
-    }, "Extra consumer did not throw an exception")
+    }, "Extra consumer did not throw an exception"))
     assertTrue(rejectedConsumer.thrownException.get.isInstanceOf[GroupMaxSizeReachedException])
 
     // assert group continues to live
     producerSend(createProducer(), maxGroupSize * 100, topic, numPartitions = Some(partitions.size))
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       consumerPollers.forall(p => p.receivedMessages >= 100)
-    }, "The consumers in the group could not fetch the expected records", 10000L)
+    }, "The consumers in the group could not fetch the expected records", 10000L))
   }
 
   /**
@@ -483,10 +483,10 @@ class ConsumerBounceTest extends AbstractConsumerTest with Logging {
       def onPartitionsRevoked(partitions: Collection[TopicPartition]): Unit = {
       }})
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       consumer.poll(time.Duration.ofMillis(100L))
       assignSemaphore.tryAcquire()
-    }, "Assignment did not complete on time")
+    }, "Assignment did not complete on time"))
 
     if (committedRecords > 0)
       assertEquals(committedRecords, consumer.committed(Set(tp).asJava).get(tp).offset)

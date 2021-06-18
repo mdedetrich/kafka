@@ -226,7 +226,7 @@ class SaslClientsWithInvalidCredentialsTest extends IntegrationTestHarness with 
 
   private def verifyWithRetry(action: => Unit): Unit = {
     var attempts = 0
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       try {
         attempts += 1
         action
@@ -234,7 +234,7 @@ class SaslClientsWithInvalidCredentialsTest extends IntegrationTestHarness with 
       } catch {
         case _: SaslAuthenticationException => false
       }
-    }, s"Operation did not succeed within timeout after $attempts")
+    }, s"Operation did not succeed within timeout after $attempts"))
   }
 
   private def createTransactionalProducer(): KafkaProducer[Array[Byte], Array[Byte]] = {

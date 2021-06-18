@@ -268,7 +268,7 @@ class PartitionTest extends AbstractPartitionTest {
       }
     }
     appendThread.start()
-    TestUtils.waitUntilTrue(() => appendSemaphore.hasQueuedThreads, "follower log append is not called.")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => appendSemaphore.hasQueuedThreads, "follower log append is not called."))
 
     val partitionState = new LeaderAndIsrPartitionState()
       .setControllerEpoch(0)
@@ -1688,7 +1688,7 @@ class PartitionTest extends AbstractPartitionTest {
     partition.expandIsr(follower3)
 
     // Try avoiding a race
-    TestUtils.waitUntilTrue(() => !partition.isrState.isInflight, "Expected ISR state to be committed", 100)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !partition.isrState.isInflight, "Expected ISR state to be committed", 100))
 
     partition.isrState match {
       case committed: CommittedIsr => assertEquals(Set(brokerId, follower1, follower2, follower3), committed.isr)
@@ -1700,7 +1700,7 @@ class PartitionTest extends AbstractPartitionTest {
       .when(kafkaZkClient)
       .conditionalUpdatePath(anyString(), any(), ArgumentMatchers.eq(2), any())
     partition.expandIsr(follower3)
-    TestUtils.waitUntilTrue(() => !partition.isrState.isInflight, "Expected ISR state to be committed", 100)
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => !partition.isrState.isInflight, "Expected ISR state to be committed", 100))
 
     scheduler.shutdown()
   }

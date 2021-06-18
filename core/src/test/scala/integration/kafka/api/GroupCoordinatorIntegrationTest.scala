@@ -48,8 +48,8 @@ class GroupCoordinatorIntegrationTest extends KafkaServerTestHarness {
     def getGroupMetadataLogOpt: Option[Log] =
       logManager.getLog(new TopicPartition(Topic.GROUP_METADATA_TOPIC_NAME, 0))
 
-    TestUtils.waitUntilTrue(() => getGroupMetadataLogOpt.exists(_.logSegments.exists(_.log.batches.asScala.nonEmpty)),
-                            "Commit message not appended in time")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => getGroupMetadataLogOpt.exists(_.logSegments.exists(_.log.batches.asScala.nonEmpty)),
+                            "Commit message not appended in time"))
 
     val logSegments = getGroupMetadataLogOpt.get.logSegments
     val incorrectCompressionCodecs = logSegments

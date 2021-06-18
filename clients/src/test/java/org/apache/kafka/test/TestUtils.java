@@ -56,7 +56,9 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -86,6 +88,13 @@ public class TestUtils {
     public static final Random RANDOM = new Random();
     public static final long DEFAULT_POLL_INTERVAL_MS = 100;
     public static final long DEFAULT_MAX_WAIT_MS = 15000;
+
+    /* A global executor that is designed to be shared within tests to improve execution performance for
+    async/IO/wait style tasks
+    */
+    public static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadScheduledExecutor();
+
+    public static final long ASYNC_BLOCK_TIMEOUT_MS = 1000 * 60 * 60;
 
     public static Cluster singletonCluster() {
         return clusterWith(1);

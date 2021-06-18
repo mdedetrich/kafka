@@ -274,7 +274,7 @@ class SaslSslAdminIntegrationTest extends BaseAdminIntegrationTest with SaslSetu
   private def verifyCauseIsClusterAuth(e: Throwable): Unit = assertEquals(classOf[ClusterAuthorizationException], e.getCause.getClass)
 
   private def testAclCreateGetDelete(expectAuth: Boolean): Unit = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val result = client.createAcls(List(fooAcl, transactionalIdAcl).asJava, new CreateAclsOptions)
       if (expectAuth) {
         Try(result.all.get) match {
@@ -291,12 +291,12 @@ class SaslSslAdminIntegrationTest extends BaseAdminIntegrationTest with SaslSetu
           case Success(_) => false
         }
       }
-    }, "timed out waiting for createAcls to " + (if (expectAuth) "succeed" else "fail"))
+    }, "timed out waiting for createAcls to " + (if (expectAuth) "succeed" else "fail")))
     if (expectAuth) {
       waitForDescribeAcls(client, fooAcl.toFilter, Set(fooAcl))
       waitForDescribeAcls(client, transactionalIdAcl.toFilter, Set(transactionalIdAcl))
     }
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val result = client.deleteAcls(List(fooAcl.toFilter, transactionalIdAcl.toFilter).asJava, new DeleteAclsOptions)
       if (expectAuth) {
         Try(result.all.get) match {
@@ -318,7 +318,7 @@ class SaslSslAdminIntegrationTest extends BaseAdminIntegrationTest with SaslSetu
             true
         }
       }
-    }, "timed out waiting for deleteAcls to " + (if (expectAuth) "succeed" else "fail"))
+    }, "timed out waiting for deleteAcls to " + (if (expectAuth) "succeed" else "fail")))
     if (expectAuth) {
       waitForDescribeAcls(client, fooAcl.toFilter, Set.empty)
       waitForDescribeAcls(client, transactionalIdAcl.toFilter, Set.empty)
@@ -326,7 +326,7 @@ class SaslSslAdminIntegrationTest extends BaseAdminIntegrationTest with SaslSetu
   }
 
   private def testAclGet(expectAuth: Boolean): Unit = {
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       val userAcl = new AclBinding(new ResourcePattern(ResourceType.TOPIC, "*", PatternType.LITERAL),
         new AccessControlEntry("User:*", "*", AclOperation.ALL, AclPermissionType.ALLOW))
       val results = client.describeAcls(userAcl.toFilter)
@@ -345,7 +345,7 @@ class SaslSslAdminIntegrationTest extends BaseAdminIntegrationTest with SaslSetu
           case Success(_) => false
         }
       }
-    }, "timed out waiting for describeAcls to " + (if (expectAuth) "succeed" else "fail"))
+    }, "timed out waiting for describeAcls to " + (if (expectAuth) "succeed" else "fail")))
   }
 
   @Test
@@ -444,7 +444,7 @@ class SaslSslAdminIntegrationTest extends BaseAdminIntegrationTest with SaslSetu
     val topicResource = new ConfigResource(ConfigResource.Type.TOPIC, topic)
     var configEntries: Iterable[ConfigEntry] = null
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       try {
         val topicResponse = client.describeConfigs(List(topicResource).asJava).all.get.get(topicResource)
         configEntries = topicResponse.entries.asScala
@@ -452,17 +452,17 @@ class SaslSslAdminIntegrationTest extends BaseAdminIntegrationTest with SaslSetu
       } catch {
         case e: ExecutionException if e.getCause.isInstanceOf[UnknownTopicOrPartitionException] => false
       }
-    }, "Timed out waiting for describeConfigs")
+    }, "Timed out waiting for describeConfigs"))
 
     configEntries
   }
 
   private def waitForDescribeAcls(client: Admin, filter: AclBindingFilter, acls: Set[AclBinding]): Unit = {
     var lastResults: util.Collection[AclBinding] = null
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       lastResults = client.describeAcls(filter).values.get()
       acls == lastResults.asScala.toSet
-    }, s"timed out waiting for ACLs $acls.\nActual $lastResults")
+    }, s"timed out waiting for ACLs $acls.\nActual $lastResults"))
   }
 
   private def ensureAcls(bindings: Set[AclBinding]): Unit = {

@@ -19,10 +19,9 @@ package kafka.utils
 import java.util.Properties
 import java.util.concurrent.atomic._
 import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
-
 import kafka.log.{LoadLogParams, Log, LogConfig, LogLoader, LogManager, LogSegments, ProducerStateManager}
 import kafka.server.{BrokerTopicStats, LogDirFailureChannel}
-import kafka.utils.TestUtils.retry
+import kafka.utils.TestUtils.{block, retryAsync}
 import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.{AfterEach, BeforeEach, Test, Timeout}
 
@@ -81,9 +80,9 @@ class SchedulerTest {
   @Test
   def testNonPeriodicTask(): Unit = {
     scheduler.schedule("test", counter1.getAndIncrement _, delay = 0)
-    retry(30000) {
+    block(retryAsync(30000) {
       assertEquals(counter1.get, 1)
-    }
+    })
     Thread.sleep(5)
     assertEquals(1, counter1.get, "Should only run once")
   }
@@ -91,9 +90,9 @@ class SchedulerTest {
   @Test
   def testPeriodicTask(): Unit = {
     scheduler.schedule("test", counter1.getAndIncrement _, delay = 0, period = 5)
-    retry(30000){
+    block(retryAsync(30000){
       assertTrue(counter1.get >= 20, "Should count to 20")
-    }
+    })
   }
 
   @Test

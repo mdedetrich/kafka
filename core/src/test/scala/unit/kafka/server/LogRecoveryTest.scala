@@ -105,9 +105,9 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
     sendMessages(numMessages.toInt)
 
     // give some time for the follower 1 to record leader HW
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       server2.replicaManager.localLogOrException(topicPartition).highWatermark == numMessages,
-      "Failed to update high watermark for follower after timeout")
+      "Failed to update high watermark for follower after timeout"))
 
     servers.foreach(_.replicaManager.checkpointHighWatermarks())
     val leaderHW = hwFile1.read().getOrElse(topicPartition, 0L)
@@ -149,8 +149,8 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
       * is that server1 has caught up on the topicPartition, and has joined the ISR.
       * In the line below, we wait until the condition is met before shutting down server2
       */
-    waitUntilTrue(() => server2.replicaManager.onlinePartition(topicPartition).get.inSyncReplicaIds.size == 2,
-      "Server 1 is not able to join the ISR after restart")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => server2.replicaManager.onlinePartition(topicPartition).get.inSyncReplicaIds.size == 2,
+      "Server 1 is not able to join the ISR after restart"))
 
 
     // since server 2 was never shut down, the hw value of 30 is probably not checkpointed to disk yet
@@ -167,9 +167,9 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
     hw += 1
 
     // give some time for follower 1 to record leader HW of 60
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       server2.replicaManager.localLogOrException(topicPartition).highWatermark == hw,
-      "Failed to update high watermark for follower after timeout")
+      "Failed to update high watermark for follower after timeout"))
     // shutdown the servers to allow the hw to be checkpointed
     servers.foreach(_.shutdown())
     assertEquals(hw, hwFile1.read().getOrElse(topicPartition, 0L))
@@ -181,9 +181,9 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
     sendMessages(20)
     val hw = 20L
     // give some time for follower 1 to record leader HW of 600
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       server2.replicaManager.localLogOrException(topicPartition).highWatermark == hw,
-      "Failed to update high watermark for follower after timeout")
+      "Failed to update high watermark for follower after timeout"))
     // shutdown the servers to allow the hw to be checkpointed
     servers.foreach(_.shutdown())
     val leaderHW = hwFile1.read().getOrElse(topicPartition, 0L)
@@ -200,9 +200,9 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
     var hw = 2L
 
     // allow some time for the follower to get the leader HW
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       server2.replicaManager.localLogOrException(topicPartition).highWatermark == hw,
-      "Failed to update high watermark for follower after timeout")
+      "Failed to update high watermark for follower after timeout"))
     // kill the server hosting the preferred replica
     server1.shutdown()
     server2.shutdown()
@@ -228,12 +228,12 @@ class LogRecoveryTest extends ZooKeeperTestHarness {
     hw += 2
 
     // allow some time for the follower to create replica
-    TestUtils.waitUntilTrue(() => server1.replicaManager.localLog(topicPartition).nonEmpty,
-      "Failed to create replica in follower after timeout")
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => server1.replicaManager.localLog(topicPartition).nonEmpty,
+      "Failed to create replica in follower after timeout"))
     // allow some time for the follower to get the leader HW
-    TestUtils.waitUntilTrue(() =>
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() =>
       server1.replicaManager.localLogOrException(topicPartition).highWatermark == hw,
-      "Failed to update high watermark for follower after timeout")
+      "Failed to update high watermark for follower after timeout"))
     // shutdown the servers to allow the hw to be checkpointed
     servers.foreach(_.shutdown())
     assertEquals(hw, hwFile1.read().getOrElse(topicPartition, 0L))

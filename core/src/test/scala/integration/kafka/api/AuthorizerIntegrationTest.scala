@@ -1238,10 +1238,10 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     val resource = if (resType == TOPIC) newTopicResource else clusterResource
     addAndVerifyAcls(acls, resource)
 
-    TestUtils.waitUntilTrue(() => {
+    TestUtils.block(TestUtils.waitUntilTrueAsync(() => {
       consumer.poll(Duration.ofMillis(50L))
       this.zkClient.topicExists(newTopic)
-    }, "Expected topic was not created")
+    }, "Expected topic was not created"))
   }
 
   @Test
@@ -1259,10 +1259,10 @@ class AuthorizerIntegrationTest extends BaseRequestTest {
     addAndVerifyAcls(createAcls, topicResource)
 
     // retry as topic being created can have MetadataResponse with Errors.LEADER_NOT_AVAILABLE
-    TestUtils.retry(JTestUtils.DEFAULT_MAX_WAIT_MS) {
+    TestUtils.block(TestUtils.retryAsync(JTestUtils.DEFAULT_MAX_WAIT_MS) {
       val metadataResponse = connectAndReceive[MetadataResponse](metadataRequest)
       assertEquals(Set(topic).asJava, metadataResponse.topicsByError(Errors.NONE))
-    }
+    })
   }
 
   @Test

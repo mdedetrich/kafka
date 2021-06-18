@@ -106,9 +106,9 @@ class BrokerLifecycleManagerTest {
     manager.start(() => context.highestMetadataOffset.get(),
       context.mockChannelManager, context.clusterId, context.advertisedListeners,
       Collections.emptyMap())
-    TestUtils.retry(60000) {
+    TestUtils.block(TestUtils.retryAsync(60000) {
       Assertions.assertEquals(BrokerState.STARTING, manager.state())
-    }
+    })
     manager.close()
     Assertions.assertEquals(BrokerState.SHUTTING_DOWN, manager.state())
   }
@@ -124,10 +124,10 @@ class BrokerLifecycleManagerTest {
     manager.start(() => context.highestMetadataOffset.get(),
       context.mockChannelManager, context.clusterId, context.advertisedListeners,
       Collections.emptyMap())
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       context.poll()
       Assertions.assertEquals(1000L, manager.brokerEpoch())
-    }
+    })
     manager.close()
 
   }
@@ -150,27 +150,27 @@ class BrokerLifecycleManagerTest {
       context.mockChannelManager, context.clusterId, context.advertisedListeners,
       Collections.emptyMap())
     // We should send the first registration request and get a failure immediately
-    TestUtils.retry(60000) {
+    TestUtils.block(TestUtils.retryAsync(60000) {
       context.poll()
       Assertions.assertEquals(0, context.mockClient.futureResponses().size)
-    }
+    })
     // Verify that we resend the registration request.
     newDuplicateRegistrationResponse()
-    TestUtils.retry(60000) {
+    TestUtils.block(TestUtils.retryAsync(60000) {
       context.time.sleep(100)
       context.poll()
       manager.eventQueue.wakeup()
       Assertions.assertEquals(0, context.mockClient.futureResponses().size)
-    }
+    })
     // Verify that we time out eventually.
     context.time.sleep(300000)
-    TestUtils.retry(60000) {
+    TestUtils.block(TestUtils.retryAsync(60000) {
       context.poll()
       manager.eventQueue.wakeup()
       Assertions.assertEquals(BrokerState.SHUTTING_DOWN, manager.state())
       Assertions.assertTrue(manager.initialCatchUpFuture.isCompletedExceptionally())
       Assertions.assertEquals(-1L, manager.brokerEpoch())
-    }
+    })
     manager.close()
   }
 
@@ -187,33 +187,33 @@ class BrokerLifecycleManagerTest {
     manager.start(() => context.highestMetadataOffset.get(),
       context.mockChannelManager, context.clusterId, context.advertisedListeners,
       Collections.emptyMap())
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       context.poll()
       manager.eventQueue.wakeup()
       Assertions.assertEquals(BrokerState.RECOVERY, manager.state())
-    }
+    })
     context.mockClient.prepareResponseFrom(new BrokerHeartbeatResponse(
       new BrokerHeartbeatResponseData().setIsFenced(false)), controllerNode)
     context.time.sleep(20)
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       context.poll()
       manager.eventQueue.wakeup()
       Assertions.assertEquals(BrokerState.RUNNING, manager.state())
-    }
+    })
     manager.beginControlledShutdown()
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       context.poll()
       manager.eventQueue.wakeup()
       Assertions.assertEquals(BrokerState.PENDING_CONTROLLED_SHUTDOWN, manager.state())
-    }
+    })
     context.mockClient.prepareResponseFrom(new BrokerHeartbeatResponse(
       new BrokerHeartbeatResponseData().setShouldShutDown(true)), controllerNode)
     context.time.sleep(3000)
-    TestUtils.retry(10000) {
+    TestUtils.block(TestUtils.retryAsync(10000) {
       context.poll()
       manager.eventQueue.wakeup()
       Assertions.assertEquals(BrokerState.SHUTTING_DOWN, manager.state())
-    }
+    })
     manager.controlledShutdownFuture.get()
     manager.close()
   }

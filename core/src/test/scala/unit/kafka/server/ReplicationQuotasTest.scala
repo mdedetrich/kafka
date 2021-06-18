@@ -216,10 +216,10 @@ class ReplicationQuotasTest extends ZooKeeperTestHarness {
   }
 
   private def waitForOffsetsToMatch(offset: Int, partitionId: Int, brokerId: Int): Unit = {
-    waitUntilTrue(() => {
+    block(waitUntilTrueAsync(() => {
       offset == brokerFor(brokerId).getLogManager.getLog(new TopicPartition(topic, partitionId))
         .map(_.logEndOffset).getOrElse(0)
-    }, s"Offsets did not match for partition $partitionId on broker $brokerId", 60000)
+    }, s"Offsets did not match for partition $partitionId on broker $brokerId", 60000))
   }
 
   private def brokerFor(id: Int): KafkaServer = brokers.filter(_.config.brokerId == id).head
